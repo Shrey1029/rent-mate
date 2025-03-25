@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getItemById, getCategoryById, items } from "@/lib/data";
-import { Star, MapPin, Calendar, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { Star, MapPin, Calendar, ChevronLeft, ChevronRight, ArrowLeft, ChevronDown } from "lucide-react";
 import ItemCard from "@/components/ItemCard";
 
 const ItemDetail = () => {
@@ -21,7 +20,6 @@ const ItemDetail = () => {
     .filter(i => i.id !== id && i.category === item?.category)
     .slice(0, 3);
 
-  // Calculate rental duration and total price
   const calculatePrice = () => {
     if (!startDate || !endDate || !item) return { days: 0, total: 0 };
     
@@ -38,7 +36,6 @@ const ItemDetail = () => {
 
   const { days, total } = calculatePrice();
 
-  // Simulate loading
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -47,7 +44,6 @@ const ItemDetail = () => {
   }, []);
 
   useEffect(() => {
-    // Scroll to top when component mounts
     window.scrollTo(0, 0);
   }, [id]);
 
@@ -103,7 +99,6 @@ const ItemDetail = () => {
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Item Images */}
             <div className="lg:w-3/5">
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] mb-4">
                 {isLoading ? (
@@ -159,7 +154,6 @@ const ItemDetail = () => {
                 </div>
               )}
 
-              {/* Item Description */}
               <div className="mt-8">
                 <h2 className="text-2xl font-bold mb-2">Description</h2>
                 <p className="text-muted-foreground mb-6">{item.description}</p>
@@ -203,7 +197,6 @@ const ItemDetail = () => {
               </div>
             </div>
 
-            {/* Booking Panel */}
             <div className="lg:w-2/5">
               <div className="glass rounded-2xl shadow-lg p-6 sticky top-28">
                 <div className="mb-6">
@@ -338,7 +331,6 @@ const ItemDetail = () => {
             </div>
           </div>
 
-          {/* Similar Items */}
           {similarItems.length > 0 && (
             <div className="mt-16">
               <h2 className="text-2xl font-bold mb-6">Similar Items</h2>
