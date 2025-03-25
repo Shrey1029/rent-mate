@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -339,7 +338,7 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-1">Full Name</label>
                   <input
                     type="text"
-                    defaultValue={mockUser.name}
+                    defaultValue={userData.name}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                   />
                 </div>
@@ -347,7 +346,7 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
                     type="email"
-                    defaultValue={mockUser.email}
+                    defaultValue={userData.email}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                     disabled
                   />
@@ -356,7 +355,7 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-1">Location</label>
                   <input
                     type="text"
-                    defaultValue={mockUser.location}
+                    defaultValue={userData.location}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                   />
                 </div>
