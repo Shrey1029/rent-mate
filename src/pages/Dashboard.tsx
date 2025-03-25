@@ -9,8 +9,11 @@ import {
 } from "lucide-react";
 import { items } from "@/lib/data";
 import ItemCard from "@/components/ItemCard";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Dashboard = () => {
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("my-rentals");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,16 +26,27 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Mock data
-  const mockUser = {
-    name: "Alex Morgan",
-    email: "alex.morgan@example.com",
-    avatar: "https://randomuser.me/api/portraits/women/63.jpg",
-    joinedDate: "January 2023",
-    location: "Seattle, WA",
-    rating: 4.9
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to sign out");
+    }
   };
 
+  // User data from Supabase auth
+  const userData = {
+    name: user?.user_metadata?.name || user?.email?.split('@')[0] || "User",
+    email: user?.email || "No email",
+    avatar: user?.user_metadata?.avatar_url || "https://randomuser.me/api/portraits/women/63.jpg",
+    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : "New user",
+    location: user?.user_metadata?.location || "Location not set",
+    rating: 4.9 // Default rating since it's not stored in auth
+  };
+
+  // Mock data for items and orders (would eventually come from database)
   const mockMyRentals = items.slice(0, 2);
   const mockMyListings = items.slice(3, 5);
   const mockRentalHistory = [...items.slice(5, 6), ...items.slice(2, 3)];
@@ -411,14 +425,14 @@ const Dashboard = () => {
                     <div className="text-center">
                       <div className="w-16 h-16 mx-auto mb-2 relative">
                         <img
-                          src={mockUser.avatar}
-                          alt={mockUser.name}
+                          src={userData.avatar}
+                          alt={userData.name}
                           className="rounded-full w-full h-full object-cover"
                         />
                         <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                       </div>
-                      <h3 className="font-medium">{mockUser.name}</h3>
-                      <p className="text-xs text-muted-foreground">{mockUser.email}</p>
+                      <h3 className="font-medium">{userData.name}</h3>
+                      <p className="text-xs text-muted-foreground">{userData.email}</p>
                     </div>
                   </div>
 
@@ -441,6 +455,7 @@ const Dashboard = () => {
                       </button>
                     ))}
                     <button
+                      onClick={handleSignOut}
                       className="w-full flex items-center p-3 rounded-lg text-sm text-red-500 hover:bg-red-50"
                     >
                       <LogOut className="h-5 w-5 mr-3" />
@@ -458,18 +473,18 @@ const Dashboard = () => {
                   <div className="text-center">
                     <div className="w-20 h-20 mx-auto mb-3 relative">
                       <img
-                        src={mockUser.avatar}
-                        alt={mockUser.name}
+                        src={userData.avatar}
+                        alt={userData.name}
                         className="rounded-full w-full h-full object-cover"
                       />
                       <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                     </div>
-                    <h3 className="font-medium text-lg">{mockUser.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-1">{mockUser.email}</p>
+                    <h3 className="font-medium text-lg">{userData.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-1">{userData.email}</p>
                     <div className="flex items-center justify-center">
                       <div className="flex items-center">
                         <span className="text-xs bg-rentmate-gold/20 text-rentmate-gold px-2 py-0.5 rounded-full">
-                          ★ {mockUser.rating}
+                          ★ {userData.rating}
                         </span>
                       </div>
                     </div>
@@ -493,6 +508,7 @@ const Dashboard = () => {
                   ))}
                   <div className="pt-4 mt-4 border-t border-border">
                     <button
+                      onClick={handleSignOut}
                       className="w-full flex items-center p-3 rounded-lg text-sm text-red-500 hover:bg-red-50"
                     >
                       <LogOut className="h-5 w-5 mr-3" />
