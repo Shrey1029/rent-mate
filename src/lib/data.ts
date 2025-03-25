@@ -95,9 +95,9 @@ export const items: Item[] = [
     price: 45,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1516724562728-afc824a36e84?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1510127034890-ba27508e9f1c?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/243757/pexels-photo-243757.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/3602258/pexels-photo-3602258.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-1",
@@ -118,8 +118,8 @@ export const items: Item[] = [
     price: 35,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/303383/pexels-photo-303383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/326518/pexels-photo-326518.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-2",
@@ -140,8 +140,8 @@ export const items: Item[] = [
     price: 25,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/1571470/pexels-photo-1571470.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-3",
@@ -162,8 +162,8 @@ export const items: Item[] = [
     price: 30,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1571068316344-75bc76f77890?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/276517/pexels-photo-276517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/5466290/pexels-photo-5466290.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-4",
@@ -184,7 +184,7 @@ export const items: Item[] = [
     price: 15,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1572981779307-41b4cfa2bf8c?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/209235/pexels-photo-209235.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-5",
@@ -205,8 +205,8 @@ export const items: Item[] = [
     price: 85,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1551826152-d7908674cb8e?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/919073/pexels-photo-919073.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-6",
@@ -227,8 +227,8 @@ export const items: Item[] = [
     price: 40,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1473968512647-3e447244af8f?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/336232/pexels-photo-336232.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+      "https://images.pexels.com/photos/442589/pexels-photo-442589.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-7",
@@ -249,7 +249,7 @@ export const items: Item[] = [
     price: 30,
     priceUnit: "day",
     images: [
-      "https://images.unsplash.com/photo-1598808503746-f34c53b9323e?q=80&w=1000&auto=format&fit=crop"
+      "https://images.pexels.com/photos/937481/pexels-photo-937481.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
     ],
     owner: {
       id: "user-8",
