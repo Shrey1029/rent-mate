@@ -1,23 +1,40 @@
+
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { 
   User, UserCircle, Package, MessageSquare, 
-  Settings, CreditCard, LogOut, Plus, ChevronRight, ChevronDown 
+  Settings, CreditCard, LogOut, ChevronRight, ChevronDown 
 } from "lucide-react";
-import { items } from "@/lib/data";
-import ItemCard from "@/components/ItemCard";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import ProfileImageUpload from "@/components/ProfileImageUpload";
+import UserItems from "@/components/UserItems";
+import UserRentals from "@/components/UserRentals";
+import { fetchOwnerRentals } from "@/services/itemService";
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { user, profile, signOut, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState("my-rentals");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [ownerRentals, setOwnerRentals] = useState<any[]>([]);
+  const [ownerRentalsLoading, setOwnerRentalsLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    location: ''
+  });
 
-  // Simulate loading
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user && !isLoading) {
+      navigate('/auth');
+    }
+  }, [user, isLoading, navigate]);
+
+  // Load initial data
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -25,55 +42,78 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Load owner rentals when tab changes
+  useEffect(() => {
+    if (activeTab === 'orders' && user) {
+      const loadOwnerRentals = async () => {
+        setOwnerRentalsLoading(true);
+        try {
+          const data = await fetchOwnerRentals(user.id);
+          setOwnerRentals(data);
+        } catch (error) {
+          console.error('Error loading owner rentals:', error);
+        } finally {
+          setOwnerRentalsLoading(false);
+        }
+      };
+
+      loadOwnerRentals();
+    }
+  }, [activeTab, user]);
+
+  // Set form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        location: profile.location || ''
+      });
+    }
+  }, [profile]);
+
   // Handle sign out
   const handleSignOut = async () => {
     try {
       await signOut();
+      navigate('/');
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Failed to sign out");
     }
   };
 
-  // User data from Supabase auth
-  const userData = {
-    name: user?.user_metadata?.name || user?.email?.split('@')[0] || "User",
-    email: user?.email || "No email",
-    avatar: user?.user_metadata?.avatar_url || "https://randomuser.me/api/portraits/women/63.jpg",
-    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : "New user",
-    location: user?.user_metadata?.location || "Location not set",
-    rating: 4.9 // Default rating since it's not stored in auth
+  // Handle profile update
+  const handleProfileUpdate = async () => {
+    try {
+      await updateProfile({
+        full_name: formData.full_name,
+        location: formData.location
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    }
   };
 
-  // Mock data for items and orders (would eventually come from database)
-  const mockMyRentals = items.slice(0, 2);
-  const mockMyListings = items.slice(3, 5);
-  const mockRentalHistory = [...items.slice(5, 6), ...items.slice(2, 3)];
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-  const mockOrders = [
-    {
-      id: "order-1",
-      item: items[0],
-      status: "Active",
-      startDate: "2023-06-10",
-      endDate: "2023-06-15",
-      totalAmount: 225
-    },
-    {
-      id: "order-2",
-      item: items[3],
-      status: "Completed",
-      startDate: "2023-05-20",
-      endDate: "2023-05-22",
-      totalAmount: 60
-    }
-  ];
+  // User data from profile
+  const userData = {
+    name: profile?.full_name || user?.email?.split('@')[0] || "User",
+    email: user?.email || "No email",
+    avatar: profile?.avatar_url || "https://randomuser.me/api/portraits/women/63.jpg",
+    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : "New user",
+    location: profile?.location || "Location not set",
+    rating: 4.9 // Default rating since it's not stored in auth
+  };
 
   const menuItems = [
     { id: "my-rentals", label: "My Rentals", icon: Package },
     { id: "my-listings", label: "My Listings", icon: User },
-    { id: "rental-history", label: "Rental History", icon: Package },
-    { id: "orders", label: "Orders", icon: CreditCard },
+    { id: "orders", label: "Rental Requests", icon: CreditCard },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings }
   ];
@@ -91,184 +131,62 @@ const Dashboard = () => {
 
     switch (activeTab) {
       case "my-rentals":
-        return (
-          <div className="animate-fade-in">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">My Rentals</h2>
-              <button className="button-primary bg-rentmate-orange text-white py-2 px-4 flex items-center">
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Listing
-              </button>
-            </div>
-            
-            {mockMyRentals.length === 0 ? (
-              <div className="glass p-12 rounded-2xl text-center">
-                <h3 className="text-lg font-medium mb-2">No rental items</h3>
-                <p className="text-muted-foreground mb-4">
-                  You haven't rented any items yet.
-                </p>
-                <Link to="/browse" className="button-primary bg-rentmate-orange text-white">
-                  Browse Items
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockMyRentals.map(item => (
-                  <ItemCard key={item.id} item={item} />
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <UserRentals />;
       
       case "my-listings":
-        return (
-          <div className="animate-fade-in">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">My Listings</h2>
-              <button className="button-primary bg-rentmate-orange text-white py-2 px-4 flex items-center">
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Listing
-              </button>
-            </div>
-            
-            {mockMyListings.length === 0 ? (
-              <div className="glass p-12 rounded-2xl text-center">
-                <h3 className="text-lg font-medium mb-2">No listings yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  You haven't added any items for rent.
-                </p>
-                <button className="button-primary bg-rentmate-orange text-white">
-                  Add Your First Listing
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockMyListings.map(item => (
-                  <ItemCard key={item.id} item={item} />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      
-      case "rental-history":
-        return (
-          <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6">Rental History</h2>
-            
-            {mockRentalHistory.length === 0 ? (
-              <div className="glass p-12 rounded-2xl text-center">
-                <h3 className="text-lg font-medium mb-2">No rental history</h3>
-                <p className="text-muted-foreground mb-4">
-                  You haven't rented any items yet.
-                </p>
-                <Link to="/browse" className="button-primary bg-rentmate-orange text-white">
-                  Browse Items
-                </Link>
-              </div>
-            ) : (
-              <div className="glass rounded-2xl overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-4">Item</th>
-                      <th className="text-left p-4 hidden md:table-cell">Date</th>
-                      <th className="text-left p-4 hidden md:table-cell">Owner</th>
-                      <th className="text-left p-4">Price</th>
-                      <th className="text-left p-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockRentalHistory.map((item, index) => (
-                      <tr key={item.id} className="border-t border-border">
-                        <td className="p-4">
-                          <div className="flex items-center">
-                            <img 
-                              src={item.images[0]} 
-                              alt={item.name} 
-                              className="w-12 h-12 rounded-lg object-cover mr-3"
-                            />
-                            <div className="truncate">
-                              <p className="font-medium truncate">{item.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(2023, 5 - index, 15).toLocaleDateString()} - {new Date(2023, 5 - index, 18).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4 hidden md:table-cell">
-                          {new Date(2023, 5 - index, 15).toLocaleDateString()}
-                        </td>
-                        <td className="p-4 hidden md:table-cell">
-                          <div className="flex items-center">
-                            <img 
-                              src={item.owner.avatar} 
-                              alt={item.owner.name} 
-                              className="w-6 h-6 rounded-full mr-2"
-                            />
-                            {item.owner.name}
-                          </div>
-                        </td>
-                        <td className="p-4 font-medium">
-                          ${item.price * 3}
-                        </td>
-                        <td className="p-4">
-                          <Link to={`/item/${item.id}`} className="text-rentmate-orange hover:underline text-sm">
-                            View Details
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
+        return <UserItems />;
       
       case "orders":
         return (
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6">My Orders</h2>
+            <h2 className="text-2xl font-bold mb-6">Rental Requests</h2>
             
-            {mockOrders.length === 0 ? (
+            {ownerRentalsLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-12 h-12 border-4 border-rentmate-orange border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-muted-foreground">Loading rental requests...</p>
+              </div>
+            ) : ownerRentals.length === 0 ? (
               <div className="glass p-12 rounded-2xl text-center">
-                <h3 className="text-lg font-medium mb-2">No orders yet</h3>
+                <h3 className="text-lg font-medium mb-2">No rental requests</h3>
                 <p className="text-muted-foreground mb-4">
-                  You haven't placed any orders yet.
+                  You don't have any rental requests yet.
                 </p>
-                <Link to="/browse" className="button-primary bg-rentmate-orange text-white">
-                  Browse Items
-                </Link>
               </div>
             ) : (
               <div className="space-y-4">
-                {mockOrders.map(order => (
-                  <div key={order.id} className="glass rounded-2xl p-4 md:p-6">
+                {ownerRentals.map((rental) => (
+                  <div key={rental.id} className="glass rounded-2xl p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                       <div className="flex items-center mb-4 md:mb-0">
                         <div className="flex-shrink-0 mr-4">
-                          <img 
-                            src={order.item.images[0]} 
-                            alt={order.item.name} 
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
+                          {rental.item.images && rental.item.images.length > 0 ? (
+                            <img 
+                              src={rental.item.images[0].image_url} 
+                              alt={rental.item.name} 
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                              <Package className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <h3 className="font-medium">{order.item.name}</h3>
+                          <h3 className="font-medium">{rental.item.name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Order #{order.id}
+                            Rental #{rental.id.substring(0, 8)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          order.status === 'Active' ? 'bg-green-100 text-green-800' : 
-                          order.status === 'Completed' ? 'bg-blue-100 text-blue-800' : 
+                          rental.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          rental.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                          rental.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
                           'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {order.status}
+                          {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
                         </span>
                       </div>
                     </div>
@@ -277,34 +195,39 @@ const Dashboard = () => {
                       <div>
                         <p className="text-xs text-muted-foreground">Rental Period</p>
                         <p className="text-sm">
-                          {new Date(order.startDate).toLocaleDateString()} - {new Date(order.endDate).toLocaleDateString()}
+                          {new Date(rental.start_date).toLocaleDateString()} - {new Date(rental.end_date).toLocaleDateString()}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Owner</p>
+                        <p className="text-xs text-muted-foreground">Renter</p>
                         <p className="text-sm flex items-center">
                           <img 
-                            src={order.item.owner.avatar} 
-                            alt={order.item.owner.name} 
+                            src={rental.renter?.avatar_url || '/placeholder.svg'} 
+                            alt={rental.renter?.full_name || 'Renter'} 
                             className="w-4 h-4 rounded-full mr-1"
                           />
-                          {order.item.owner.name}
+                          {rental.renter?.full_name || 'Anonymous'}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-sm font-medium">${order.totalAmount}</p>
+                        <p className="text-sm font-medium">${rental.total_price}</p>
                       </div>
                     </div>
                     
                     <div className="flex justify-end space-x-2">
-                      <Link to={`/item/${order.item.id}`} className="text-sm text-rentmate-orange">
+                      <Link to={`/item/${rental.item.id}`} className="text-sm text-rentmate-orange">
                         View Item
                       </Link>
-                      {order.status === 'Active' && (
-                        <button className="px-4 py-1 text-sm bg-rentmate-orange text-white rounded-lg">
-                          Return Item
-                        </button>
+                      {rental.status === 'pending' && (
+                        <>
+                          <button className="px-4 py-1 text-sm bg-green-500 text-white rounded-lg">
+                            Accept
+                          </button>
+                          <button className="px-4 py-1 text-sm bg-gray-300 text-gray-700 rounded-lg">
+                            Decline
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -332,13 +255,19 @@ const Dashboard = () => {
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
             <div className="glass rounded-2xl p-6 mb-6">
+              <div className="flex items-center justify-center mb-6">
+                <ProfileImageUpload />
+              </div>
+              
               <h3 className="text-lg font-medium mb-4">Profile Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Full Name</label>
                   <input
                     type="text"
-                    defaultValue={userData.name}
+                    name="full_name"
+                    value={formData.full_name}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                   />
                 </div>
@@ -346,7 +275,7 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
                     type="email"
-                    defaultValue={userData.email}
+                    value={userData.email}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                     disabled
                   />
@@ -355,13 +284,18 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-1">Location</label>
                   <input
                     type="text"
-                    defaultValue={userData.location}
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
                   />
                 </div>
               </div>
               <div className="mt-4 flex justify-end">
-                <button className="button-primary bg-rentmate-orange text-white py-2 px-4">
+                <button 
+                  className="button-primary bg-rentmate-orange text-white py-2 px-4"
+                  onClick={handleProfileUpdate}
+                >
                   Save Changes
                 </button>
               </div>
@@ -470,15 +404,8 @@ const Dashboard = () => {
               <div className="glass rounded-2xl p-6 sticky top-28">
                 <div className="flex items-center justify-center mb-6 p-4">
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-3 relative">
-                      <img
-                        src={userData.avatar}
-                        alt={userData.name}
-                        className="rounded-full w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                    </div>
-                    <h3 className="font-medium text-lg">{userData.name}</h3>
+                    <ProfileImageUpload />
+                    <h3 className="font-medium text-lg mt-2">{userData.name}</h3>
                     <p className="text-sm text-muted-foreground mb-1">{userData.email}</p>
                     <div className="flex items-center justify-center">
                       <div className="flex items-center">
