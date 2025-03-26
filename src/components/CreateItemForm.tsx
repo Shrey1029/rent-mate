@@ -1,353 +1,241 @@
-
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Image as ImageIcon, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { createItem, NewItem } from '@/services/itemService';
+import { createItem } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+// Import the ML service
+import { suggestCategories } from '@/services/mlService';
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-
-type CreateItemFormProps = {
-  onSuccess: () => void;
-  onCancel: () => void;
-};
-
-const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
-const categories = [
-  'Electronics',
-  'Furniture',
-  'Home Appliances',
-  'Garden Tools',
-  'Sports Equipment',
-  'Clothing',
-  'Books',
-  'Tools',
-  'Toys & Games',
-  'Musical Instruments',
-  'Vehicles',
-  'Other'
-];
-
-const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => {
+const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) => {
   const { user } = useAuth();
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState<number | ''>('');
+  const [dailyRate, setDailyRate] = useState(false);
+  const [category, setCategory] = useState('');
+  const [condition, setCondition] = useState('');
+  const [images, setImages] = useState<File[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<NewItem>({
-    defaultValues: {
-      name: '',
-      description: '',
-      price: 0,
-      daily_rate: true,
-      category: '',
-      condition: ''
-    }
-  });
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    // Limit to 5 images
-    if (selectedImages.length + files.length > 5) {
-      toast.error('You can only upload up to 5 images');
-      return;
-    }
-
-    const newFiles: File[] = [];
-    const newPreviews: string[] = [];
-
-    Array.from(files).forEach(file => {
-      // Check file type
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} is not an image file`);
-        return;
-      }
-
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 5MB size limit`);
-        return;
-      }
-
-      newFiles.push(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          newPreviews.push(event.target.result as string);
-          if (newPreviews.length === newFiles.length) {
-            setImagePreviews([...imagePreviews, ...newPreviews]);
-            setSelectedImages([...selectedImages, ...newFiles]);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (index: number) => {
-    const newImages = [...selectedImages];
-    const newPreviews = [...imagePreviews];
-    newImages.splice(index, 1);
-    newPreviews.splice(index, 1);
-    setSelectedImages(newImages);
-    setImagePreviews(newPreviews);
-  };
-
-  const onSubmit = async (data: NewItem) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user) {
-      toast.error('You must be logged in to create an item');
+      toast.error('You must be logged in to create a listing.');
+      navigate('/auth');
       return;
     }
 
-    if (selectedImages.length === 0) {
-      toast.error('Please add at least one image');
+    if (!name || !description || price === '' || !category || !condition || images.length === 0) {
+      toast.error('Please fill in all required fields and upload at least one image.');
       return;
     }
 
-    setIsSubmitting(true);
-
+    setIsLoading(true);
     try {
-      await createItem(data, user.id, selectedImages);
-      toast.success('Item created successfully');
+      if (typeof price === 'string') {
+        throw new Error('Price must be a number.');
+      }
+
+      await createItem(
+        {
+          name,
+          description,
+          price,
+          daily_rate: dailyRate,
+          category,
+          condition,
+        },
+        user.id,
+        images
+      );
+      toast.success('Item created successfully!');
       onSuccess();
-    } catch (error) {
-      console.error('Error creating item:', error);
-      toast.error('Failed to create item');
+    } catch (error: any) {
+      console.error('Item creation error:', error);
+      toast.error(error.message || 'Failed to create item. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    setImages(Array.from(e.target.files));
+  };
+
+  // Inside the component, add this function to handle category suggestions:
+  const handleSuggestCategories = async () => {
+    if (!description || description.length < 10) {
+      toast.error('Please enter a longer description for better suggestions');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const suggestions = await suggestCategories(description);
+      if (suggestions.length > 0) {
+        setCategory(suggestions[0]);
+        if (suggestions.length > 1) {
+          toast.success(`Suggested categories: ${suggestions.join(', ')}`);
+        } else {
+          toast.success(`Suggested category: ${suggestions[0]}`);
+        }
+      } else {
+        toast.info('No specific category suggestions found. Please select manually.');
+      }
+    } catch (error) {
+      console.error('Error getting category suggestions:', error);
+      toast.error('Failed to suggest categories');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="glass p-6 rounded-2xl">
-      <h3 className="text-lg font-semibold mb-4">Create New Listing</h3>
-
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground mb-3">Item Images (Up to 5)</p>
-        <div className="flex flex-wrap gap-4 mb-3">
-          {imagePreviews.map((src, index) => (
-            <div key={index} className="relative w-20 h-20">
-              <img
-                src={src}
-                alt={`Preview ${index}`}
-                className="w-full h-full rounded-lg object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => removeImage(index)}
-                className="absolute -top-2 -right-2 bg-white p-1 rounded-full shadow-md"
-              >
-                <X className="w-4 h-4 text-red-500" />
-              </button>
-            </div>
-          ))}
-          
-          {selectedImages.length < 5 && (
-            <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-rentmate-orange transition-colors">
-              <ImageIcon className="w-6 h-6 text-muted-foreground mb-1" />
-              <span className="text-xs text-muted-foreground">Add</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleImageSelect}
-              />
-            </label>
-          )}
-        </div>
-        {selectedImages.length === 0 && (
-          <p className="text-xs text-muted-foreground">Please add at least one image</p>
-        )}
+    <form onSubmit={handleSubmit} className="animate-fade-in">
+      <div className="form-group">
+        <label htmlFor="name" className="block text-sm font-medium mb-1">
+          Item Name *
+        </label>
+        <input
+          type="text"
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
+          placeholder="e.g., Mountain Bike"
+          required
+        />
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            rules={{ required: 'Item name is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Item Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter item name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+      <div className="form-group">
+        <label htmlFor="description" className="block text-sm font-medium mb-1">
+          Description *
+        </label>
+        <textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
+          placeholder="e.g., Great condition mountain bike for rent"
+          required
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="price" className="block text-sm font-medium mb-1">
+          Price *
+        </label>
+        <input
+          type="number"
+          id="price"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
+          placeholder="e.g., 25"
+          required
+        />
+      </div>
+
+      <div className="form-group">
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="dailyRate"
+            checked={dailyRate}
+            onChange={(e) => setDailyRate(e.target.checked)}
+            className="mr-2 h-5 w-5 text-rentmate-orange focus:ring-rentmate-orange rounded"
           />
+          <label htmlFor="dailyRate" className="text-sm font-medium">
+            Daily Rate
+          </label>
+        </div>
+      </div>
 
-          <FormField
-            control={form.control}
-            name="description"
-            rules={{ required: 'Description is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Describe your item"
-                    className="min-h-[100px]"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+      {/* In the JSX for the Category field, add a suggestion button after the input */}
+      <div className="form-group">
+        <label htmlFor="category" className="block text-sm font-medium mb-1">
+          Category *
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="category"
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
+            placeholder="e.g., Electronics, Furniture"
+            required
           />
+          <button
+            type="button"
+            onClick={handleSuggestCategories}
+            disabled={isLoading}
+            className="px-3 py-2 bg-rentmate-gold text-black rounded-xl hover:bg-rentmate-gold/90 transition-colors text-sm"
+          >
+            Suggest
+          </button>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="price"
-              rules={{
-                required: 'Price is required',
-                min: { value: 0.01, message: 'Price must be greater than 0' }
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2">$</span>
-                      <Input
-                        type="number"
-                        className="pl-6"
-                        step="0.01"
-                        min="0"
-                        {...field}
-                        onChange={e => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <div className="form-group">
+        <label htmlFor="condition" className="block text-sm font-medium mb-1">
+          Condition *
+        </label>
+        <select
+          id="condition"
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
+          required
+        >
+          <option value="">Select Condition</option>
+          <option value="new">New</option>
+          <option value="like new">Like New</option>
+          <option value="used - excellent">Used - Excellent</option>
+          <option value="used - good">Used - Good</option>
+          <option value="used - fair">Used - Fair</option>
+        </select>
+      </div>
 
-            <FormField
-              control={form.control}
-              name="daily_rate"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Rate Type</FormLabel>
-                  <FormControl>
-                    <select
-                      className="w-full px-3 py-2 rounded-md border border-input"
-                      value={field.value ? 'daily' : 'fixed'}
-                      onChange={e => field.onChange(e.target.value === 'daily')}
-                    >
-                      <option value="daily">Daily Rate</option>
-                      <option value="fixed">Fixed Price</option>
-                    </select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+      <div className="form-group">
+        <label htmlFor="images" className="block text-sm font-medium mb-1">
+          Images *
+        </label>
+        <input
+          type="file"
+          id="images"
+          multiple
+          accept="image/*"
+          onChange={handleImageChange}
+          className="w-full"
+          required
+        />
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="category"
-              rules={{ required: 'Category is required' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <FormControl>
-                    <select
-                      className="w-full px-3 py-2 rounded-md border border-input"
-                      {...field}
-                    >
-                      <option value="" disabled>
-                        Select a category
-                      </option>
-                      {categories.map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="condition"
-              rules={{ required: 'Condition is required' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Condition</FormLabel>
-                  <FormControl>
-                    <select
-                      className="w-full px-3 py-2 rounded-md border border-input"
-                      {...field}
-                    >
-                      <option value="" disabled>
-                        Select condition
-                      </option>
-                      {conditions.map(condition => (
-                        <option key={condition} value={condition}>
-                          {condition}
-                        </option>
-                      ))}
-                    </select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <button
-              type="button"
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-rentmate-orange text-white rounded-lg text-sm flex items-center justify-center"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Create Listing
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </Form>
-    </div>
+      <div className="mt-8 flex justify-end gap-4">
+        <button
+          type="button"
+          className="button-secondary"
+          onClick={onCancel}
+          disabled={isLoading}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="button-primary bg-rentmate-orange text-white"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            'Create Listing'
+          )}
+        </button>
+      </div>
+    </form>
   );
 };
 

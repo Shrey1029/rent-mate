@@ -103,10 +103,14 @@ const UserItems = () => {
                   category: item.category || 'Uncategorized',
                   location: 'Your listing',
                   rating: 5,
+                  priceUnit: item.daily_rate ? 'day' : 'week',
+                  description: item.description || '',
                   images: item.images.map(img => img.image_url),
                   owner: {
+                    id: user?.id || '',
                     name: 'You',
-                    avatar: item.owner?.avatar_url || '/placeholder.svg'
+                    avatar: item.owner?.avatar_url || '/placeholder.svg',
+                    rating: 5
                   }
                 }} 
               />
