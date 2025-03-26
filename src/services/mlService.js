@@ -18,4 +18,3 @@ export const suggestCategories = async (description) => {
     return [];
   }
 };
-
