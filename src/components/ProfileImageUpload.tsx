@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Upload, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const ProfileImageUpload = () => {
   const { profile, uploadAvatar } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Ensure avatar URL is updated when profile changes
+  useEffect(() => {
+    if (profile?.avatar_url) {
+      setAvatarUrl(profile.avatar_url);
+    }
+  }, [profile]);
+
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -29,15 +38,18 @@ const ProfileImageUpload = () => {
     // Create preview
     const reader = new FileReader();
     reader.onload = (event) => {
-      setPreviewUrl(event.target?.result as string);
+      setPreviewUrl(event.target?.result);
     };
     reader.readAsDataURL(file);
 
     // Upload to storage
     setIsUploading(true);
     try {
-      await uploadAvatar(file);
-      toast.success('Profile image updated');
+      const newAvatarUrl = await uploadAvatar(file);
+      if (newAvatarUrl) {
+        setAvatarUrl(newAvatarUrl);
+        toast.success('Profile image updated');
+      }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload image');
@@ -56,11 +68,12 @@ const ProfileImageUpload = () => {
       <div className="w-24 h-24 relative mb-4">
         {previewUrl ? (
           <div className="relative">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="w-24 h-24 rounded-full object-cover"
-            />
+            <Avatar className="w-24 h-24">
+              <AvatarImage src={previewUrl} alt="Preview" className="object-cover" />
+              <AvatarFallback>
+                <User className="h-12 w-12 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
             <button
               onClick={handleCancelPreview}
               className="absolute -top-2 -right-2 bg-white p-1 rounded-full shadow-md"
@@ -69,19 +82,19 @@ const ProfileImageUpload = () => {
             </button>
           </div>
         ) : (
-          <div className="w-24 h-24 rounded-full overflow-hidden">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name || 'User'}
-                className="w-full h-full object-cover"
+          <Avatar className="w-24 h-24">
+            {avatarUrl ? (
+              <AvatarImage 
+                src={avatarUrl} 
+                alt={profile?.full_name || 'User'} 
+                className="object-cover"
+                onError={() => console.log('Avatar failed to load:', avatarUrl)} 
               />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <User className="h-12 w-12 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+            ) : null}
+            <AvatarFallback className="bg-muted">
+              <User className="h-12 w-12 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
         )}
 
         <label
