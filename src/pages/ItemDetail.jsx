@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { format, addDays, differenceInDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import { createRental } from "@/services/itemService";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -23,6 +24,7 @@ const ItemDetail = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [rentalDuration, setRentalDuration] = useState(1);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [rentLoading, setRentLoading] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -81,6 +83,7 @@ const ItemDetail = () => {
     }
 
     try {
+      setRentLoading(true);
       const startDate = selectedDate;
       const endDate = addDays(startDate, rentalDuration);
       const totalPrice = item.price * rentalDuration;
@@ -91,6 +94,8 @@ const ItemDetail = () => {
     } catch (error) {
       console.error("Error creating rental:", error);
       toast.error("Failed to create rental request");
+    } finally {
+      setRentLoading(false);
     }
   };
 
@@ -98,9 +103,45 @@ const ItemDetail = () => {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-rentmate-orange border-t-transparent"></div>
-        </div>
+        <main className="py-28">
+          <div className="rentmate-container">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Image skeleton */}
+              <div>
+                <Skeleton className="rounded-xl w-full aspect-square mb-4" />
+                <div className="flex space-x-2 overflow-x-auto pb-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="rounded-lg w-20 h-20 flex-shrink-0" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Details skeleton */}
+              <div className="glass p-6 rounded-2xl">
+                <Skeleton className="h-8 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2 mb-4" />
+                <div className="flex items-center mb-6">
+                  <Skeleton className="h-10 w-10 rounded-full mr-3" />
+                  <div>
+                    <Skeleton className="h-4 w-24 mb-1" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-32 mb-4" />
+                <Skeleton className="h-20 w-full mb-6" />
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <Skeleton className="h-20 rounded-xl" />
+                  <Skeleton className="h-20 rounded-xl" />
+                </div>
+                <Skeleton className="h-8 w-40 mb-4" />
+                <Skeleton className="h-12 w-full mb-4" />
+                <Skeleton className="h-12 w-full mb-4" />
+                <Skeleton className="h-12 w-full mb-6" />
+                <Skeleton className="h-12 w-full mb-4" />
+              </div>
+            </div>
+          </div>
+        </main>
         <Footer />
       </>
     );
@@ -143,6 +184,7 @@ const ItemDetail = () => {
                     src={item.images[activeImageIndex].image_url}
                     alt={item.name}
                     className="w-full h-full object-cover"
+                    loading="eager"
                   />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -168,6 +210,7 @@ const ItemDetail = () => {
                         src={image.image_url}
                         alt={`${item.name} ${index + 1}`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     </div>
                   ))}
@@ -195,6 +238,7 @@ const ItemDetail = () => {
                     src={item.owner?.avatar_url || "/placeholder.svg"}
                     alt={item.owner?.full_name || "Owner"}
                     className="w-10 h-10 rounded-full mr-3"
+                    loading="lazy"
                   />
                   <div>
                     <p className="text-sm font-medium">
@@ -325,9 +369,18 @@ const ItemDetail = () => {
                   className="w-full bg-rentmate-orange hover:bg-rentmate-orange/90"
                   size="lg"
                   onClick={handleRentNow}
-                  disabled={!selectedDate}
+                  disabled={!selectedDate || rentLoading}
                 >
-                  Rent Now <ArrowRight className="ml-2 h-4 w-4" />
+                  {rentLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Rent Now <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
                 
                 <div className="flex items-start mt-4 text-xs text-muted-foreground">

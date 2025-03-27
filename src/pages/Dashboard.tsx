@@ -13,6 +13,7 @@ import ProfileImageUpload from "@/components/ProfileImageUpload";
 import UserItems from "@/components/UserItems";
 import UserRentals from "@/components/UserRentals";
 import { fetchOwnerRentals } from "@/services/itemService";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,8 +21,8 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("my-rentals");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [ownerRentals, setOwnerRentals] = useState<any[]>([]);
-  const [ownerRentalsLoading, setOwnerRentalsLoading] = useState(true);
+  const [ownerRentals, setOwnerRentals] = useState([]);
+  const [ownerRentalsLoading, setOwnerRentalsLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
     location: ''
@@ -31,18 +32,16 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user && !isLoading) {
       navigate('/auth');
+      return;
+    }
+    
+    // If user exists, we can stop the initial loading
+    if (user) {
+      setIsLoading(false);
     }
   }, [user, isLoading, navigate]);
 
-  // Load initial data
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Load owner rentals when tab changes
+  // Load owner rentals only when tab changes to 'orders'
   useEffect(() => {
     if (activeTab === 'orders' && user) {
       const loadOwnerRentals = async () => {
@@ -52,6 +51,7 @@ const Dashboard = () => {
           setOwnerRentals(data);
         } catch (error) {
           console.error('Error loading owner rentals:', error);
+          toast.error('Failed to load rental requests');
         } finally {
           setOwnerRentalsLoading(false);
         }
@@ -89,13 +89,14 @@ const Dashboard = () => {
         full_name: formData.full_name,
         location: formData.location
       });
+      toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile");
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -118,17 +119,43 @@ const Dashboard = () => {
     { id: "settings", label: "Settings", icon: Settings }
   ];
 
+  // Loading skeleton for dashboard
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow py-28">
+          <div className="rentmate-container">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="hidden lg:block w-64 shrink-0">
+                <div className="glass rounded-2xl p-6">
+                  <Skeleton className="h-32 w-full mb-6" />
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Skeleton key={i} className="h-10 w-full" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex-1">
+                <Skeleton className="h-12 w-48 mb-6" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {[1, 2, 3, 4].map(i => (
+                    <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   // Render different content based on active tab
   const renderTabContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-rentmate-orange border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      );
-    }
-
     switch (activeTab) {
       case "my-rentals":
         return <UserRentals />;
@@ -142,9 +169,10 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold mb-6">Rental Requests</h2>
             
             {ownerRentalsLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-12 h-12 border-4 border-rentmate-orange border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-muted-foreground">Loading rental requests...</p>
+              <div className="grid grid-cols-1 gap-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                ))}
               </div>
             ) : ownerRentals.length === 0 ? (
               <div className="glass p-12 rounded-2xl text-center">
@@ -160,7 +188,7 @@ const Dashboard = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                       <div className="flex items-center mb-4 md:mb-0">
                         <div className="flex-shrink-0 mr-4">
-                          {rental.item.images && rental.item.images.length > 0 ? (
+                          {rental.item?.images && rental.item.images.length > 0 ? (
                             <img 
                               src={rental.item.images[0].image_url} 
                               alt={rental.item.name} 
@@ -173,7 +201,7 @@ const Dashboard = () => {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-medium">{rental.item.name}</h3>
+                          <h3 className="font-medium">{rental.item?.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             Rental #{rental.id.substring(0, 8)}
                           </p>
@@ -211,12 +239,12 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-sm font-medium">${rental.total_price}</p>
+                        <p className="text-sm font-medium">₹{rental.total_price}</p>
                       </div>
                     </div>
                     
                     <div className="flex justify-end space-x-2">
-                      <Link to={`/item/${rental.item.id}`} className="text-sm text-rentmate-orange">
+                      <Link to={`/item/${rental.item?.id}`} className="text-sm text-rentmate-orange">
                         View Item
                       </Link>
                       {rental.status === 'pending' && (
@@ -293,7 +321,7 @@ const Dashboard = () => {
               </div>
               <div className="mt-4 flex justify-end">
                 <button 
-                  className="button-primary bg-rentmate-orange text-white py-2 px-4"
+                  className="button-primary bg-rentmate-orange text-white py-2 px-4 rounded-lg"
                   onClick={handleProfileUpdate}
                 >
                   Save Changes
@@ -329,6 +357,7 @@ const Dashboard = () => {
     }
   };
 
+  // Now the main content
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />

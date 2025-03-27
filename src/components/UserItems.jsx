@@ -7,6 +7,7 @@ import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import CreateItemForm from "./CreateItemForm";
 import ItemCard from "./ItemCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const UserItems = () => {
   const { user } = useAuth();
@@ -59,8 +60,8 @@ const UserItems = () => {
         location: item.location || "Not specified",
         images: item.item_images.map((img) => img.image_url),
         owner: {
-          name: user.user_metadata.full_name || user.email.split("@")[0],
-          avatar: user.user_metadata.avatar_url || "https://via.placeholder.com/150",
+          name: user.user_metadata?.full_name || user.email?.split("@")[0],
+          avatar: user.user_metadata?.avatar_url || "https://via.placeholder.com/150",
           rating: "4.8" // Default rating
         },
       }));
@@ -80,10 +81,31 @@ const UserItems = () => {
     toast.success("Item listed successfully!");
   };
 
-  if (loading && items.length === 0) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center h-60">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">Your Listings</h2>
+          <Button onClick={() => setShowCreateForm(true)} className="bg-rentmate-orange hover:bg-rentmate-orange/90">
+            <Plus className="h-4 w-4 mr-1" /> New Listing
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="glass rounded-xl overflow-hidden shadow-sm">
+              <Skeleton className="h-48 w-full" />
+              <div className="p-4">
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2 mb-4" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

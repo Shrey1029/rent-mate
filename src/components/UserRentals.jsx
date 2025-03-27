@@ -5,6 +5,7 @@ import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Loader2, Package } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const UserRentals = () => {
   const { user } = useAuth();
@@ -31,8 +32,23 @@ const UserRentals = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-60">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div>
+        <h2 className="text-2xl font-bold mb-6">My Rentals</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="glass rounded-xl overflow-hidden shadow-sm">
+              <Skeleton className="h-40 w-full" />
+              <div className="p-4">
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2 mb-4" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -56,11 +72,12 @@ const UserRentals = () => {
           {rentals.map(rental => (
             <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="h-40 overflow-hidden">
-                {rental.item.images && rental.item.images.length > 0 ? (
+                {rental.item?.images && rental.item.images.length > 0 ? (
                   <img 
                     src={rental.item.images[0].image_url} 
                     alt={rental.item.name}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -69,7 +86,7 @@ const UserRentals = () => {
                 )}
               </div>
               <div className="p-4">
-                <h3 className="font-medium text-lg">{rental.item.name}</h3>
+                <h3 className="font-medium text-lg">{rental.item?.name}</h3>
                 <div className="flex justify-between items-center mt-1">
                   <div>
                     <p className="text-sm text-muted-foreground">
@@ -90,7 +107,7 @@ const UserRentals = () => {
                 </div>
                 <div className="mt-3 flex justify-end">
                   <Link 
-                    to={`/item/${rental.item.id}`}
+                    to={`/item/${rental.item?.id}`}
                     className="text-sm text-rentmate-orange hover:underline"
                   >
                     View Details
