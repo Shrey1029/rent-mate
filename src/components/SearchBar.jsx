@@ -10,12 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // List of Indian campus locations
 const indianLocations = [
@@ -90,7 +84,8 @@ const SearchBar = ({ className = "", withFilters = false }) => {
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                {/* Key fix: using "all" instead of empty string */}
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
@@ -110,7 +105,8 @@ const SearchBar = ({ className = "", withFilters = false }) => {
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Locations</SelectItem>
+                {/* Key fix: using "all" instead of empty string */}
+                <SelectItem value="all">All Locations</SelectItem>
                 {indianLocations.map((loc) => (
                   <SelectItem key={loc} value={loc}>
                     {loc}
