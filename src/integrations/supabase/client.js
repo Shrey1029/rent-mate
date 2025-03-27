@@ -19,4 +19,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   global: {
     fetch: (...args) => fetch(...args),
   },
+  // Add queryCache to improve performance
+  cache: {
+    maxAge: 30, // Cache results for 30 seconds
+  },
 });
+
+// Helper function to refresh schema cache - call when getting schema errors
+export const refreshSchemaCache = async () => {
+  try {
+    await supabase.rpc('reload_types');
+    console.log('Schema cache refreshed');
+  } catch (error) {
+    console.error('Error refreshing schema cache:', error);
+  }
+};

@@ -49,6 +49,7 @@ export type Database = {
           daily_rate: boolean | null
           description: string | null
           id: string
+          location: string | null
           name: string
           owner_id: string
           price: number
@@ -61,6 +62,7 @@ export type Database = {
           daily_rate?: boolean | null
           description?: string | null
           id?: string
+          location?: string | null
           name: string
           owner_id: string
           price: number
@@ -73,6 +75,7 @@ export type Database = {
           daily_rate?: boolean | null
           description?: string | null
           id?: string
+          location?: string | null
           name?: string
           owner_id?: string
           price?: number

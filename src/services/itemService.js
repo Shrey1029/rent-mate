@@ -22,7 +22,8 @@ export const fetchItems = async () => {
   return data.map((item) => ({
     ...item,
     images: item.item_images || [],
-    owner: item.profiles || {}
+    owner: item.profiles || {},
+    location: item.location || 'Not specified'
   }));
 };
 
@@ -46,7 +47,8 @@ export const fetchUserItems = async (userId) => {
   return data.map((item) => ({
     ...item,
     images: item.item_images || [],
-    owner: item.profiles || {}
+    owner: item.profiles || {},
+    location: item.location || 'Not specified'
   }));
 };
 
@@ -75,7 +77,8 @@ export const fetchUserRentals = async (userId) => {
     item: {
       ...rental.items,
       images: rental.items.item_images || [],
-      owner: rental.items.profiles || {}
+      owner: rental.items.profiles || {},
+      location: rental.items.location || 'Not specified'
     }
   }));
 };
@@ -104,7 +107,8 @@ export const fetchOwnerRentals = async (userId) => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || []
+      images: rental.items.item_images || [],
+      location: rental.items.location || 'Not specified'
     }
   }));
 };
@@ -155,7 +159,7 @@ export const createItem = async (
         daily_rate: item.daily_rate,
         category: item.category,
         condition: item.condition,
-        location: item.location,
+        location: item.location || null, // Handle the location field
         owner_id: userId
       })
       .select()
