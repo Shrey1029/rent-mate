@@ -88,12 +88,19 @@ const ItemDetail = () => {
 
   useEffect(() => {
     // Calculate rental days and total price when dates change
-    if (startDate && endDate) {
+    if (startDate && endDate && item) {
       const days = Math.max(1, differenceInDays(endDate, startDate) + 1);
       setRentalDays(days);
       
-      if (item) {
-        setTotalPrice(item.price * days);
+      // Convert price to Indian Rupees
+      const priceInRupees = item.price * 83;
+      
+      // Calculate total based on daily rate or full period
+      if (item.daily_rate) {
+        setTotalPrice(priceInRupees * days);
+      } else {
+        const weeks = Math.ceil(days / 7);
+        setTotalPrice(priceInRupees * weeks);
       }
     }
   }, [startDate, endDate, item]);
@@ -201,8 +208,9 @@ const ItemDetail = () => {
               </Badge>
             </div>
 
-            <div className="text-2xl font-bold mb-4 text-primary">
-              ₹{item.price} {item.daily_rate ? "/ day" : "for rental period"}
+            <div className="flex items-center mb-2">
+              <span className="text-2xl font-bold text-primary">₹{(item.price * 83).toFixed(0)}</span>
+              <span className="text-muted-foreground ml-1">/{item.daily_rate ? 'day' : 'week'}</span>
             </div>
 
             <div className="flex items-center mb-6">
@@ -294,7 +302,7 @@ const ItemDetail = () => {
                     </div>
                     <div className="flex justify-between font-bold">
                       <span>Total Price:</span>
-                      <span>₹{totalPrice}</span>
+                      <span>₹{totalPrice.toFixed(0)}</span>
                     </div>
                   </div>
                 </div>
@@ -314,7 +322,7 @@ const ItemDetail = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Price:</span>
-                    <span>₹{item.price} {item.daily_rate ? "/ day" : ""}</span>
+                    <span>₹{(item.price * 83).toFixed(0)} {item.daily_rate ? "/ day" : "/ week"}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Availability:</span>

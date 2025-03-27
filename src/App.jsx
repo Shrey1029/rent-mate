@@ -5,7 +5,7 @@ import Index from "./pages/Index";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import ItemDetail from "./pages/ItemDetail";
+import ItemDetail from "./pages/ItemDetail.jsx";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/useAuth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

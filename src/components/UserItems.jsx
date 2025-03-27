@@ -1,122 +1,130 @@
 
-import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
-import { fetchUserItems } from '@/services/itemService';
-import ItemCard from '@/components/ItemCard';
-import CreateItemForm from '@/components/CreateItemForm';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import CreateItemForm from "./CreateItemForm";
+import ItemCard from "./ItemCard";
 
 const UserItems = () => {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-
-    const loadUserItems = async () => {
-      try {
-        const data = await fetchUserItems(user.id);
-        setItems(data);
-      } catch (error) {
-        console.error('Error loading user items:', error);
-        toast.error('Failed to load your items');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUserItems();
+    if (user) {
+      fetchUserItems();
+    }
   }, [user]);
 
-  const handleItemCreated = async () => {
-    setShowCreateForm(false);
-    if (!user) return;
-    
-    setIsLoading(true);
+  const fetchUserItems = async () => {
+    setLoading(true);
     try {
-      const data = await fetchUserItems(user.id);
-      setItems(data);
+      const { data, error } = await supabase
+        .from("items")
+        .select(
+          `
+          id,
+          name,
+          description,
+          price,
+          daily_rate,
+          category,
+          condition,
+          created_at,
+          item_images (
+            id,
+            image_url,
+            is_primary
+          )
+        `
+        )
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const formattedItems = data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        priceUnit: item.daily_rate ? "day" : "rental",
+        category: item.category,
+        condition: item.condition,
+        images: item.item_images.map((img) => img.image_url),
+        owner: {
+          name: user.user_metadata.full_name || user.email.split("@")[0],
+          avatar: user.user_metadata.avatar_url || "https://via.placeholder.com/150",
+          rating: "4.8" // Default rating
+        },
+      }));
+
+      setItems(formattedItems);
     } catch (error) {
-      console.error('Error refreshing items:', error);
+      console.error("Error fetching user items:", error);
+      toast.error("Failed to load your listings");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  if (isLoading) {
+  const handleCreateSuccess = () => {
+    setShowCreateForm(false);
+    fetchUserItems();
+    toast.success("Item listed successfully!");
+  };
+
+  if (loading && items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="w-12 h-12 border-4 border-rentmate-orange border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-muted-foreground">Loading your items...</p>
+      <div className="flex justify-center items-center h-60">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (showCreateForm) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow-subtle animate-fade-in">
+        <h2 className="text-xl font-bold mb-4">Create New Listing</h2>
+        <CreateItemForm
+          onSuccess={handleCreateSuccess}
+          onCancel={() => setShowCreateForm(false)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">My Listings</h2>
-        <button 
-          className="button-primary bg-rentmate-orange text-white py-2 px-4 flex items-center"
-          onClick={() => setShowCreateForm(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Listing
-        </button>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold">Your Listings</h2>
+        <Button onClick={() => setShowCreateForm(true)} className="bg-rentmate-orange hover:bg-rentmate-orange/90">
+          <Plus className="h-4 w-4 mr-1" /> New Listing
+        </Button>
       </div>
-      
-      {showCreateForm && (
-        <div className="mb-8">
-          <CreateItemForm 
-            onSuccess={handleItemCreated} 
-            onCancel={() => setShowCreateForm(false)} 
-          />
-        </div>
-      )}
-      
-      {!showCreateForm && items.length === 0 ? (
-        <div className="glass p-12 rounded-2xl text-center">
-          <h3 className="text-lg font-medium mb-2">No listings yet</h3>
+
+      {items.length === 0 ? (
+        <div className="text-center py-10 bg-muted/30 rounded-xl">
+          <h3 className="font-medium text-lg mb-2">No Listings Yet</h3>
           <p className="text-muted-foreground mb-4">
-            You haven't added any items for rent. Start earning by listing your items!
+            You haven't listed any items for rent yet.
           </p>
-          <button 
-            className="button-primary bg-rentmate-orange text-white"
-            onClick={() => setShowCreateForm(true)}
-          >
-            Add Your First Listing
-          </button>
+          <Button onClick={() => setShowCreateForm(true)} className="bg-rentmate-orange hover:bg-rentmate-orange/90">
+            <Plus className="h-4 w-4 mr-1" /> Create Your First Listing
+          </Button>
         </div>
       ) : (
-        !showCreateForm && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map(item => (
-              <ItemCard 
-                key={item.id} 
-                item={{
-                  id: item.id,
-                  name: item.name,
-                  price: item.price,
-                  category: item.category || 'Uncategorized',
-                  location: 'Your listing',
-                  priceUnit: item.daily_rate ? 'day' : 'week',
-                  description: item.description || '',
-                  images: item.images.map(img => img.image_url),
-                  owner: {
-                    id: user?.id || '',
-                    name: 'You',
-                    avatar: item.owner?.avatar_url || '/placeholder.svg',
-                    rating: 5
-                  },
-                  status: item.status
-                }} 
-              />
-            ))}
-          </div>
-        )
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map((item) => (
+            <ItemCard key={item.id} item={item} />
+          ))}
+        </div>
       )}
     </div>
   );
