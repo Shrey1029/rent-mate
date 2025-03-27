@@ -1,29 +1,16 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { format, addDays, differenceInDays } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
+import { Star, Calendar, MapPin, Clock, Info, ArrowRight } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { format, addDays, differenceInDays } from "date-fns";
 import { createRental } from "@/services/itemService";
 
 const ItemDetail = () => {
@@ -32,50 +19,40 @@ const ItemDetail = () => {
   const { user } = useAuth();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(addDays(new Date(), 1));
-  const [activeImage, setActiveImage] = useState("");
-  const [rentalDays, setRentalDays] = useState(1);
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [isRentDialogOpen, setIsRentDialogOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [rentalDuration, setRentalDuration] = useState(1);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
-      setLoading(true);
       try {
         const { data, error } = await supabase
           .from("items")
-          .select(
-            `
+          .select(`
             *,
             item_images (id, image_url, is_primary),
             profiles:owner_id (id, full_name, avatar_url)
-          `
-          )
+          `)
           .eq("id", id)
           .single();
 
         if (error) {
-          console.error("Error fetching item:", error);
-          navigate("/404");
-          return;
+          throw error;
         }
 
+        // Format the item data
         const formattedItem = {
           ...data,
           images: data.item_images || [],
-          owner: data.profiles,
+          owner: data.profiles || {},
+          location: data.location || "Not specified", // Add default location
         };
-
-        setItem(formattedItem);
         
-        // Set the active image to the primary image, or the first one if no primary
-        const primaryImage = formattedItem.images.find(img => img.is_primary);
-        setActiveImage(primaryImage ? primaryImage.image_url : 
-                      formattedItem.images.length > 0 ? formattedItem.images[0].image_url : "");
+        setItem(formattedItem);
       } catch (error) {
-        console.error("Error in fetchItem:", error);
-        navigate("/404");
+        console.error("Error fetching item:", error);
+        toast.error("Could not load item details");
       } finally {
         setLoading(false);
       }
@@ -84,31 +61,17 @@ const ItemDetail = () => {
     if (id) {
       fetchItem();
     }
-  }, [id, navigate]);
+  }, [id]);
 
-  useEffect(() => {
-    // Calculate rental days and total price when dates change
-    if (startDate && endDate && item) {
-      const days = Math.max(1, differenceInDays(endDate, startDate) + 1);
-      setRentalDays(days);
-      
-      // Convert price to Indian Rupees
-      const priceInRupees = item.price * 83;
-      
-      // Calculate total based on daily rate or full period
-      if (item.daily_rate) {
-        setTotalPrice(priceInRupees * days);
-      } else {
-        const weeks = Math.ceil(days / 7);
-        setTotalPrice(priceInRupees * weeks);
-      }
-    }
-  }, [startDate, endDate, item]);
-
-  const handleRent = async () => {
+  const handleRentNow = async () => {
     if (!user) {
-      toast.error("Please sign in to rent this item");
+      toast.error("Please log in to rent this item");
       navigate("/auth");
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error("Please select a start date");
       return;
     }
 
@@ -118,250 +81,270 @@ const ItemDetail = () => {
     }
 
     try {
+      const startDate = selectedDate;
+      const endDate = addDays(startDate, rentalDuration);
+      const totalPrice = item.price * rentalDuration;
+
       await createRental(item.id, startDate, endDate, totalPrice);
       toast.success("Rental request submitted successfully!");
-      setIsRentDialogOpen(false);
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error creating rental:", error);
-      toast.error("Failed to submit rental request");
+      toast.error("Failed to create rental request");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <>
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-rentmate-orange border-t-transparent"></div>
         </div>
         <Footer />
-      </div>
+      </>
     );
   }
 
   if (!item) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <>
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <p>Item not found</p>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Item Not Found</h1>
+            <p className="mb-6">The item you're looking for doesn't exist or has been removed.</p>
+            <Button onClick={() => navigate("/browse")}>
+              Back to Browse
+            </Button>
+          </div>
         </div>
         <Footer />
-      </div>
+      </>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <div className="flex-1 container mx-auto py-8 px-4">
-        <div className="mb-4">
-          <Link to="/browse" className="text-primary hover:underline flex items-center gap-1">
-            <span>← Back to Browse</span>
-          </Link>
-        </div>
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setCalendarOpen(false);
+  };
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Left side - Images */}
-          <div>
-            <div className="mb-4 rounded-lg overflow-hidden aspect-video bg-gray-100">
-              {activeImage ? (
-                <img
-                  src={activeImage}
-                  alt={item.name}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <span className="text-gray-400">No image available</span>
+  return (
+    <>
+      <Navbar />
+      <main className="py-28">
+        <div className="rentmate-container">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Image gallery */}
+            <div>
+              <div className="rounded-xl overflow-hidden aspect-square mb-4">
+                {item.images && item.images.length > 0 ? (
+                  <img
+                    src={item.images[activeImageIndex].image_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    No images available
+                  </div>
+                )}
+              </div>
+              
+              {/* Thumbnail gallery */}
+              {item.images && item.images.length > 1 && (
+                <div className="flex space-x-2 overflow-x-auto pb-2">
+                  {item.images.map((image, index) => (
+                    <div
+                      key={image.id}
+                      className={`cursor-pointer rounded-lg overflow-hidden w-20 h-20 flex-shrink-0 transition-all ${
+                        index === activeImageIndex
+                          ? "ring-2 ring-rentmate-orange"
+                          : "opacity-70 hover:opacity-100"
+                      }`}
+                      onClick={() => setActiveImageIndex(index)}
+                    >
+                      <img
+                        src={image.image_url}
+                        alt={`${item.name} ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
-              {item.images.map((image) => (
-                <div
-                  key={image.id}
-                  onClick={() => setActiveImage(image.image_url)}
-                  className={`cursor-pointer aspect-square rounded-md overflow-hidden border-2 ${
-                    activeImage === image.image_url
-                      ? "border-primary"
-                      : "border-transparent"
-                  }`}
-                >
+            {/* Item details */}
+            <div className="glass p-6 rounded-2xl">
+              <h1 className="text-2xl font-bold mb-2">{item.name}</h1>
+              
+              <div className="flex items-center text-sm text-muted-foreground mb-4">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span>{item.location}</span>
+                <span className="mx-2">•</span>
+                <Clock className="h-4 w-4 mr-1" />
+                <span>
+                  Listed {new Date(item.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              
+              <div className="flex items-center mb-6">
+                <div className="flex items-center">
                   <img
-                    src={image.image_url}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
+                    src={item.owner?.avatar_url || "/placeholder.svg"}
+                    alt={item.owner?.full_name || "Owner"}
+                    className="w-10 h-10 rounded-full mr-3"
                   />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {item.owner?.full_name || "Anonymous"}
+                    </p>
+                    <div className="flex items-center text-xs text-rentmate-gold">
+                      <Star className="h-3 w-3 mr-1 fill-rentmate-gold" />
+                      <span>4.9</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right side - Details */}
-          <div>
-            <div className="flex justify-between items-start mb-4">
-              <h1 className="text-3xl font-bold">{item.name}</h1>
-              <Badge variant={item.daily_rate ? "default" : "outline"}>
-                {item.daily_rate ? "Daily Rate" : "Full Period"}
-              </Badge>
-            </div>
-
-            <div className="flex items-center mb-2">
-              <span className="text-2xl font-bold text-primary">₹{(item.price * 83).toFixed(0)}</span>
-              <span className="text-muted-foreground ml-1">/{item.daily_rate ? 'day' : 'week'}</span>
-            </div>
-
-            <div className="flex items-center mb-6">
-              <Avatar className="h-8 w-8 mr-2">
-                <AvatarImage src={item.owner?.avatar_url} />
-                <AvatarFallback>{item.owner?.full_name?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span>{item.owner?.full_name || "Unknown owner"}</span>
-            </div>
-
-            <div className="mb-6">
-              <h3 className="font-medium mb-2">Description</h3>
-              <p className="text-gray-700">{item.description || "No description provided."}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <Label>Category</Label>
-                <div>{item.category || "Uncategorized"}</div>
               </div>
-              <div>
-                <Label>Condition</Label>
-                <div>{item.condition || "Not specified"}</div>
+              
+              <div className="flex items-baseline mb-4">
+                <span className="text-2xl font-bold text-rentmate-orange">
+                  ₹{item.price}
+                </span>
+                <span className="text-sm text-muted-foreground ml-1">
+                  / {item.daily_rate ? "day" : "rental"}
+                </span>
               </div>
-              <div>
-                <Label>Location</Label>
-                <div>{item.location || "Not specified"}</div>
+              
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Description</h3>
+                <p className="text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
-            </div>
-
-            <Dialog open={isRentDialogOpen} onOpenChange={setIsRentDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full mb-4">Rent Now</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Rent {item.name}</DialogTitle>
-                  <DialogDescription>
-                    Select your rental period and confirm the details.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Start Date</Label>
-                      <Calendar
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="glass p-3 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">Category</p>
+                  <p className="font-medium">
+                    {item.category || "Uncategorized"}
+                  </p>
+                </div>
+                <div className="glass p-3 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">Condition</p>
+                  <p className="font-medium">
+                    {item.condition || "Not specified"}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Rental form */}
+              <div>
+                <h3 className="text-lg font-medium mb-4">Reserve this item</h3>
+                
+                <div className="mb-4">
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {selectedDate ? (
+                          format(selectedDate, "PPP")
+                        ) : (
+                          <span>Pick a start date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
                         mode="single"
-                        selected={startDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setStartDate(date);
-                            if (date > endDate) {
-                              setEndDate(addDays(date, 1));
-                            }
-                          }
-                        }}
+                        selected={selectedDate}
+                        onSelect={handleDateSelect}
                         initialFocus
                         disabled={(date) => date < new Date()}
                       />
-                    </div>
-                    <div>
-                      <Label>End Date</Label>
-                      <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={(date) => date && setEndDate(date)}
-                        initialFocus
-                        disabled={(date) =>
-                          date < addDays(startDate, 0)
-                        }
-                      />
-                    </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium mb-2">
+                    Rental Duration (days)
+                  </label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRentalDuration(Math.max(1, rentalDuration - 1))}
+                      disabled={rentalDuration <= 1}
+                    >
+                      -
+                    </Button>
+                    <span className="mx-4 font-medium">{rentalDuration}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRentalDuration(rentalDuration + 1)}
+                    >
+                      +
+                    </Button>
                   </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Rental Period:</span>
-                      <span>
-                        {format(startDate, "MMM dd, yyyy")} to{" "}
-                        {format(endDate, "MMM dd, yyyy")}
+                </div>
+                
+                {selectedDate && (
+                  <div className="glass p-4 rounded-xl mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm">Start Date</span>
+                      <span className="font-medium">
+                        {format(selectedDate, "MMM d, yyyy")}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Duration:</span>
-                      <span>{rentalDays} day{rentalDays !== 1 ? "s" : ""}</span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm">End Date</span>
+                      <span className="font-medium">
+                        {format(
+                          addDays(selectedDate, rentalDuration),
+                          "MMM d, yyyy"
+                        )}
+                      </span>
                     </div>
-                    <div className="flex justify-between font-bold">
-                      <span>Total Price:</span>
-                      <span>₹{totalPrice.toFixed(0)}</span>
+                    <div className="border-t border-border pt-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Total</span>
+                        <span className="font-bold">
+                          ₹{item.price * rentalDuration}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                )}
+                
+                <Button
+                  className="w-full bg-rentmate-orange hover:bg-rentmate-orange/90"
+                  size="lg"
+                  onClick={handleRentNow}
+                  disabled={!selectedDate}
+                >
+                  Rent Now <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-start mt-4 text-xs text-muted-foreground">
+                  <Info className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
+                  <p>
+                    Rental requests need to be accepted by the owner before they
+                    are confirmed. You will not be charged until the owner accepts
+                    your request.
+                  </p>
                 </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsRentDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleRent}>Confirm Rental</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-2">Rental Summary</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Price:</span>
-                    <span>₹{(item.price * 83).toFixed(0)} {item.daily_rate ? "/ day" : "/ week"}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Availability:</span>
-                    <span className="text-green-600">Available Now</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="mt-12">
-          <Tabs defaultValue="details">
-            <TabsList className="mb-4">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="policies">Policies</TabsTrigger>
-            </TabsList>
-            <TabsContent value="details" className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium mb-2">About this item</h3>
-                <p>{item.description || "No additional details provided."}</p>
-              </div>
-            </TabsContent>
-            <TabsContent value="policies" className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Rental Policies</h3>
-                <ul className="list-disc pl-5 space-y-2">
-                  <li>Return the item in the same condition you received it</li>
-                  <li>Late returns may incur additional charges</li>
-                  <li>Contact the owner immediately if item is damaged</li>
-                  <li>Cancellations must be made at least 24 hours in advance</li>
-                </ul>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+      </main>
       <Footer />
-    </div>
+    </>
   );
 };
 

@@ -25,8 +25,7 @@ const UserItems = () => {
     try {
       const { data, error } = await supabase
         .from("items")
-        .select(
-          `
+        .select(`
           id,
           name,
           description,
@@ -34,14 +33,14 @@ const UserItems = () => {
           daily_rate,
           category,
           condition,
+          location,
           created_at,
           item_images (
             id,
             image_url,
             is_primary
           )
-        `
-        )
+        `)
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -57,6 +56,7 @@ const UserItems = () => {
         priceUnit: item.daily_rate ? "day" : "rental",
         category: item.category,
         condition: item.condition,
+        location: item.location || "Not specified",
         images: item.item_images.map((img) => img.image_url),
         owner: {
           name: user.user_metadata.full_name || user.email.split("@")[0],

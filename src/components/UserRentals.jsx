@@ -4,10 +4,11 @@ import { Link } from 'react-router-dom';
 import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { Loader2, Package } from 'lucide-react';
 
 const UserRentals = () => {
   const { user } = useAuth();
-  const [rentals, setRentals] = useState<any[]>([]);
+  const [rentals, setRentals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,9 +31,8 @@ const UserRentals = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="w-12 h-12 border-4 border-rentmate-orange border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-muted-foreground">Loading your rentals...</p>
+      <div className="flex justify-center items-center h-60">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -47,14 +47,14 @@ const UserRentals = () => {
           <p className="text-muted-foreground mb-4">
             You haven't rented any items yet.
           </p>
-          <Link to="/browse" className="button-primary bg-rentmate-orange text-white">
+          <Link to="/browse" className="button-primary bg-rentmate-orange text-white py-2 px-4 rounded-lg inline-block">
             Browse Items
           </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {rentals.map(rental => (
-            <div key={rental.id} className="glass rounded-xl overflow-hidden">
+            <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="h-40 overflow-hidden">
                 {rental.item.images && rental.item.images.length > 0 ? (
                   <img 
@@ -64,12 +64,12 @@ const UserRentals = () => {
                   />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">
-                    No image
+                    <Package className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
               </div>
               <div className="p-4">
-                <h3 className="font-medium">{rental.item.name}</h3>
+                <h3 className="font-medium text-lg">{rental.item.name}</h3>
                 <div className="flex justify-between items-center mt-1">
                   <div>
                     <p className="text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ const UserRentals = () => {
                       </span>
                     </div>
                   </div>
-                  <p className="font-semibold">${rental.total_price}</p>
+                  <p className="font-semibold">₹{rental.total_price}</p>
                 </div>
                 <div className="mt-3 flex justify-end">
                   <Link 

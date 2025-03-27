@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { createItem } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 // Import the ML service
 import { suggestCategories } from '@/services/mlService';
 
@@ -77,10 +78,22 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
 
   const handleImageChange = (e) => {
     if (!e.target.files) return;
-    setImages(Array.from(e.target.files));
+    
+    // Validate file size
+    const files = Array.from(e.target.files);
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    const validFiles = files.filter(file => {
+      if (file.size > maxSize) {
+        toast.error(`File ${file.name} is too large. Maximum size is 5MB.`);
+        return false;
+      }
+      return true;
+    });
+    
+    setImages(validFiles);
   };
 
-  // Inside the component, add this function to handle category suggestions:
   const handleSuggestCategories = async () => {
     if (!description || description.length < 10) {
       toast.error('Please enter a longer description for better suggestions');
@@ -110,7 +123,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="animate-fade-in">
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="name" className="block text-sm font-medium mb-1">
           Item Name *
         </label>
@@ -125,7 +138,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         />
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="description" className="block text-sm font-medium mb-1">
           Description *
         </label>
@@ -136,12 +149,13 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
           className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
           placeholder="e.g., Great condition mountain bike for rent"
           required
+          rows={4}
         />
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="price" className="block text-sm font-medium mb-1">
-          Price *
+          Price (₹) *
         </label>
         <input
           type="number"
@@ -149,12 +163,12 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
           className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
-          placeholder="e.g., 25"
+          placeholder="e.g., 500"
           required
         />
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <div className="flex items-center">
           <input
             type="checkbox"
@@ -169,7 +183,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         </div>
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="category" className="block text-sm font-medium mb-1">
           Category *
         </label>
@@ -189,12 +203,16 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
             disabled={isLoading}
             className="px-3 py-2 bg-rentmate-gold text-black rounded-xl hover:bg-rentmate-gold/90 transition-colors text-sm"
           >
-            Suggest
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Suggest'
+            )}
           </button>
         </div>
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="location" className="block text-sm font-medium mb-1">
           Location *
         </label>
@@ -212,7 +230,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         </select>
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="condition" className="block text-sm font-medium mb-1">
           Condition *
         </label>
@@ -232,25 +250,52 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         </select>
       </div>
 
-      <div className="form-group">
+      <div className="form-group mb-4">
         <label htmlFor="images" className="block text-sm font-medium mb-1">
-          Images *
+          Images * (Max 5MB per image)
         </label>
-        <input
-          type="file"
-          id="images"
-          multiple
-          accept="image/*"
-          onChange={handleImageChange}
-          className="w-full"
-          required
-        />
+        <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
+          <input
+            type="file"
+            id="images"
+            multiple
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+          />
+          <label htmlFor="images" className="cursor-pointer block">
+            <div className="text-sm text-muted-foreground">
+              {images.length > 0 ? (
+                <span className="text-foreground font-medium">
+                  {images.length} {images.length === 1 ? 'image' : 'images'} selected
+                </span>
+              ) : (
+                <>
+                  <span className="text-rentmate-orange">Click to upload</span> or drag and drop
+                </>
+              )}
+            </div>
+          </label>
+        </div>
+        {images.length > 0 && (
+          <div className="flex gap-2 mt-2 overflow-x-auto py-2">
+            {Array.from(images).map((file, index) => (
+              <div key={index} className="w-16 h-16 flex-shrink-0">
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt={`Preview ${index}`}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-8 flex justify-end gap-4">
         <button
           type="button"
-          className="button-secondary"
+          className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
           onClick={onCancel}
           disabled={isLoading}
         >
@@ -258,11 +303,14 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         </button>
         <button
           type="submit"
-          className="button-primary bg-rentmate-orange text-white"
+          className="px-4 py-2 rounded-lg bg-rentmate-orange text-white hover:bg-rentmate-orange/90"
           disabled={isLoading}
         >
           {isLoading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span className="flex items-center">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </span>
           ) : (
             'Create Listing'
           )}
