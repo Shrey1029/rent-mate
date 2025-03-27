@@ -1,9 +1,28 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Item } from "@/lib/data";
 import { Heart, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export interface ItemOwner {
+  id: string;
+  name: string;
+  avatar: string;
+  rating: number;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  priceUnit: string;
+  category: string;
+  location: string;
+  images: string[];
+  owner: ItemOwner;
+  status?: string;
+}
 
 interface ItemCardProps {
   item: Item;

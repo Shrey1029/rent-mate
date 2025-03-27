@@ -3,6 +3,27 @@ import React, { useState } from "react";
 import { Search, MapPin, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { categories } from "@/lib/data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// List of Indian campus locations
+const indianLocations = [
+  "RBU Nagpur",
+  "VNIT Nagpur",
+  "Symbiosis Nagpur",
+  "IIT Mumbai",
+  "Delhi University",
+  "IIM Ahmedabad",
+  "BITS Pilani",
+  "Pune University",
+  "Anna University Chennai",
+  "Manipal University"
+];
 
 interface SearchBarProps {
   className?: string;
@@ -12,16 +33,16 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ className = "", withFilters = false }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [location, setLocation] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [location, setLocation] = useState("all");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const queryParams = new URLSearchParams();
     
     if (searchTerm) queryParams.set("search", searchTerm);
-    if (selectedCategory) queryParams.set("category", selectedCategory);
-    if (location) queryParams.set("location", location);
+    if (selectedCategory && selectedCategory !== "all") queryParams.set("category", selectedCategory);
+    if (location && location !== "all") queryParams.set("location", location);
     
     navigate(`/browse?${queryParams.toString()}`);
   };
@@ -60,29 +81,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ className = "", withFilters = fal
       {withFilters && (
         <div className="flex flex-wrap items-center gap-2 p-3 border-t border-border mt-2">
           <div className="flex items-center rounded-full bg-background px-3 py-1">
-            <select
+            <Select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent border-none focus:outline-none text-sm"
+              onValueChange={setSelectedCategory}
             >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="bg-transparent border-none focus:outline-none text-sm px-2 min-h-0 h-auto">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex items-center rounded-full bg-background px-3 py-1">
             <MapPin className="h-4 w-4 text-muted-foreground mr-1" />
-            <input
-              type="text"
+            <Select
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Location"
-              className="bg-transparent border-none focus:outline-none text-sm w-24"
-            />
+              onValueChange={setLocation}
+            >
+              <SelectTrigger className="bg-transparent border-none focus:outline-none text-sm px-2 min-h-0 h-auto">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {indianLocations.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {loc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}

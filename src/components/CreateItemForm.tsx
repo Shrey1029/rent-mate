@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { createItem } from '@/services/itemService';
@@ -6,7 +7,12 @@ import { useNavigate } from 'react-router-dom';
 // Import the ML service
 import { suggestCategories } from '@/services/mlService';
 
-const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) => {
+interface CreateItemFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+const CreateItemForm: React.FC<CreateItemFormProps> = ({ onSuccess, onCancel }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -33,7 +39,9 @@ const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCanc
 
     setIsLoading(true);
     try {
-      if (typeof price === 'string') {
+      const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+      
+      if (isNaN(numericPrice)) {
         throw new Error('Price must be a number.');
       }
 
@@ -41,7 +49,7 @@ const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCanc
         {
           name,
           description,
-          price,
+          price: numericPrice,
           daily_rate: dailyRate,
           category,
           condition,
@@ -64,7 +72,11 @@ const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCanc
     setImages(Array.from(e.target.files));
   };
 
-  // Inside the component, add this function to handle category suggestions:
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPrice(e.target.value === '' ? '' : parseFloat(e.target.value));
+  };
+
+  // Handle category suggestions
   const handleSuggestCategories = async () => {
     if (!description || description.length < 10) {
       toast.error('Please enter a longer description for better suggestions');
@@ -131,7 +143,7 @@ const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCanc
           type="number"
           id="price"
           value={price}
-          onChange={(e) => setPrice(e.target.value)}
+          onChange={handlePriceChange}
           className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
           placeholder="e.g., 25"
           required
@@ -153,7 +165,6 @@ const CreateItemForm = ({ onSuccess, onCancel }: { onSuccess: () => void, onCanc
         </div>
       </div>
 
-      {/* In the JSX for the Category field, add a suggestion button after the input */}
       <div className="form-group">
         <label htmlFor="category" className="block text-sm font-medium mb-1">
           Category *

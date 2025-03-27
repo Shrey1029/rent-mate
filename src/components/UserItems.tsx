@@ -7,7 +7,7 @@ import CreateItemForm from '@/components/CreateItemForm';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-const UserItems = () => {
+const UserItems: React.FC = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<ItemWithImages[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +102,6 @@ const UserItems = () => {
                   price: item.price,
                   category: item.category || 'Uncategorized',
                   location: 'Your listing',
-                  rating: 5,
                   priceUnit: item.daily_rate ? 'day' : 'week',
                   description: item.description || '',
                   images: item.images.map(img => img.image_url),
