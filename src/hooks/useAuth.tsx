@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, ensureUserProfile } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/integrations/supabase/types';
 
 type Profile = {
   id: string;
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as any)
         .maybeSingle();
 
       if (error) {
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: retryData, error: retryError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', userId)
+            .eq('id', userId as any)
             .maybeSingle();
             
           if (retryError) {
@@ -84,8 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
+        .update(updates as any)
+        .eq('id', user.id as any);
 
       if (error) {
         toast.error('Failed to update profile');

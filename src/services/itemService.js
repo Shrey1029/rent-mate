@@ -155,9 +155,11 @@ export const createItem = async (
     }
     
     // If schema cache issue occurs, try to refresh it first
+    let itemData;
+    
     try {
       // Insert the item first
-      const { data: itemData, error: itemError } = await supabase
+      const { data, error: itemError } = await supabase
         .from('items')
         .insert({
           name: item.name,
@@ -202,6 +204,8 @@ export const createItem = async (
           console.error('Error creating item:', itemError);
           throw itemError;
         }
+      } else {
+        itemData = data;
       }
 
       const itemId = itemData.id;

@@ -20,10 +20,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   global: {
     fetch: (...args) => fetch(...args),
   },
-  // Add queryCache to improve performance
-  cache: {
-    maxAge: 30, // Cache results for 30 seconds
-  },
 });
 
 // Helper function to refresh schema cache - call when getting schema errors
@@ -43,7 +39,7 @@ export const ensureUserProfile = async (userId: string) => {
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('id', userId)
+      .eq('id', userId as any)
       .maybeSingle();
     
     if (fetchError) {
@@ -62,10 +58,10 @@ export const ensureUserProfile = async (userId: string) => {
     const { error: insertError } = await supabase
       .from('profiles')
       .insert({
-        id: userId,
+        id: userId as any,
         full_name: userData.user.user_metadata?.full_name || userData.user.email?.split('@')[0] || 'User',
         avatar_url: userData.user.user_metadata?.avatar_url || null
-      });
+      } as any);
     
     if (insertError) {
       console.error('Error creating profile:', insertError);
