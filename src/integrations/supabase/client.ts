@@ -18,7 +18,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     schema: 'public',
   },
   global: {
-    fetch: (...args) => fetch(...args),
+    fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
   },
 });
 
