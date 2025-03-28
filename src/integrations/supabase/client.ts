@@ -39,7 +39,7 @@ export const ensureUserProfile = async (userId: string) => {
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('id', userId)
+      .eq('id', userId as unknown as string)
       .maybeSingle();
     
     if (fetchError) {
@@ -58,7 +58,7 @@ export const ensureUserProfile = async (userId: string) => {
     const { error: insertError } = await supabase
       .from('profiles')
       .insert({
-        id: userId,
+        id: userId as unknown as string,
         full_name: userData.user.user_metadata?.full_name || userData.user.email?.split('@')[0] || 'User',
         avatar_url: userData.user.user_metadata?.avatar_url || null
       });
