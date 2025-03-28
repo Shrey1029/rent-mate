@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, refreshSchemaCache } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -35,7 +34,7 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
@@ -63,6 +62,9 @@ const Auth = () => {
 
         if (error) throw error;
         
+        // Refresh schema cache to ensure latest types are used
+        await refreshSchemaCache();
+        
         toast.success("Signed in successfully!");
       } else {
         // Sign up with email and password
@@ -78,11 +80,24 @@ const Auth = () => {
 
         if (error) throw error;
         
+        // Refresh schema cache to ensure latest types are used
+        await refreshSchemaCache();
+        
         toast.success("Account created successfully! Please check your email for verification.");
       }
-    } catch (error: any) {
-      setError(error.message || "An error occurred during authentication");
-      toast.error(error.message || "Authentication failed");
+    } catch (error) {
+      // Better error handling with specific messages
+      let errorMessage = error.message || "An error occurred during authentication";
+      
+      // Handle specific error cases
+      if (error.message.includes("provider is not enabled")) {
+        errorMessage = "This sign-in method is not enabled. Please use email/password.";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Please verify your email before signing in.";
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +108,13 @@ const Auth = () => {
     setError("");
     
     try {
+      // We'll disable Google sign-in since it might be causing the provider not enabled error
+      setError("Google sign-in is currently disabled. Please use email/password.");
+      toast.error("Google sign-in is currently disabled. Please use email/password.");
+      setIsLoading(false);
+      return;
+      
+      /* Original Google sign-in code commented out
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -101,9 +123,17 @@ const Auth = () => {
       });
       
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || "An error occurred during Google authentication");
-      toast.error(error.message || "Google authentication failed");
+      */
+    } catch (error) {
+      let errorMessage = error.message || "An error occurred during Google authentication";
+      
+      // Handle specific error cases
+      if (error.message.includes("provider is not enabled")) {
+        errorMessage = "Google sign-in is not enabled for this app.";
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
       setIsLoading(false);
     }
   };

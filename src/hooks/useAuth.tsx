@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, ensureUserProfile } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 type Profile = {
@@ -38,10 +38,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
+        
+        // If no profile exists, try to create one
+        const profileCreated = await ensureUserProfile(userId);
+        if (profileCreated) {
+          // Try fetching again
+          const { data: retryData, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (retryError) {
+            console.error('Error fetching profile after creation:', retryError);
+            return null;
+          }
+          
+          return retryData as Profile;
+        }
+        
         return null;
       }
 
@@ -60,6 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Ensure profile exists before updating
+      await ensureUserProfile(user.id);
+      
       const { error } = await supabase
         .from('profiles')
         .update(updates)
@@ -129,8 +151,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // When user signs in, fetch their profile
         if (session?.user) {
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
+          // Use setTimeout to avoid potential deadlocks with Supabase auth
+          setTimeout(async () => {
+            // Ensure profile exists before fetching
+            await ensureUserProfile(session.user.id);
+            const userProfile = await fetchProfile(session.user.id);
+            setProfile(userProfile);
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -152,6 +179,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch profile for existing session
       if (session?.user) {
+        // Ensure profile exists before fetching
+        await ensureUserProfile(session.user.id);
         const userProfile = await fetchProfile(session.user.id);
         setProfile(userProfile);
       }

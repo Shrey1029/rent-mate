@@ -1,5 +1,4 @@
-
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, ensureUserProfile, refreshSchemaCache } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Fetch all items with improved performance
@@ -149,76 +148,118 @@ export const createItem = async (
   images
 ) => {
   try {
-    // Insert the item first
-    const { data: itemData, error: itemError } = await supabase
-      .from('items')
-      .insert({
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        daily_rate: item.daily_rate,
-        category: item.category,
-        condition: item.condition,
-        location: item.location || null, // Handle the location field
-        owner_id: userId
-      })
-      .select()
-      .single();
-
-    if (itemError) {
-      console.error('Error creating item:', itemError);
-      throw itemError;
+    // Ensure user profile exists before creating item
+    const profileExists = await ensureUserProfile(userId);
+    if (!profileExists) {
+      throw new Error('Failed to validate user profile. Please try again or log out and back in.');
     }
-
-    const itemId = itemData.id;
     
-    // Process images in parallel for better performance
-    if (images.length > 0) {
-      const imagePromises = [];
-      
-      // Upload all images in parallel
-      const uploadPromises = images.map(file => uploadImage(file, itemId));
-      const imageUrls = await Promise.all(uploadPromises);
-      
-      // Create image records
-      for (let i = 0; i < imageUrls.length; i++) {
-        const imageUrl = imageUrls[i];
-        imagePromises.push(
-          supabase
-            .from('item_images')
+    // If schema cache issue occurs, try to refresh it first
+    try {
+      // Insert the item first
+      const { data: itemData, error: itemError } = await supabase
+        .from('items')
+        .insert({
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          daily_rate: item.daily_rate,
+          category: item.category,
+          condition: item.condition,
+          location: item.location || null, // Handle the location field
+          owner_id: userId
+        })
+        .select()
+        .single();
+
+      if (itemError) {
+        // If we get a schema cache error, try refreshing the cache and retry
+        if (itemError.message && itemError.message.includes('schema cache')) {
+          await refreshSchemaCache();
+          // Retry the insert after refreshing cache
+          const { data: retryData, error: retryError } = await supabase
+            .from('items')
             .insert({
-              item_id: itemId,
-              image_url: imageUrl,
-              is_primary: i === 0 // First image is primary
+              name: item.name,
+              description: item.description,
+              price: item.price,
+              daily_rate: item.daily_rate,
+              category: item.category,
+              condition: item.condition,
+              location: item.location || null,
+              owner_id: userId
             })
-        );
+            .select()
+            .single();
+            
+          if (retryError) {
+            console.error('Error creating item after cache refresh:', retryError);
+            throw retryError;
+          }
+          
+          itemData = retryData;
+        } else {
+          console.error('Error creating item:', itemError);
+          throw itemError;
+        }
       }
+
+      const itemId = itemData.id;
       
-      // Wait for all image insertions
-      await Promise.all(imagePromises);
+      // Process images in parallel for better performance
+      if (images.length > 0) {
+        const imagePromises = [];
+        
+        // Upload all images in parallel
+        const uploadPromises = images.map(file => uploadImage(file, itemId));
+        const imageUrls = await Promise.all(uploadPromises);
+        
+        // Create image records
+        for (let i = 0; i < imageUrls.length; i++) {
+          const imageUrl = imageUrls[i];
+          imagePromises.push(
+            supabase
+              .from('item_images')
+              .insert({
+                item_id: itemId,
+                image_url: imageUrl,
+                is_primary: i === 0 // First image is primary
+              })
+          );
+        }
+        
+        // Wait for all image insertions
+        await Promise.all(imagePromises);
+      }
+
+      // Fetch the complete item with images
+      const { data: completeItem, error: fetchError } = await supabase
+        .from('items')
+        .select(`
+          *,
+          item_images (id, image_url, is_primary),
+          profiles:owner_id (full_name, avatar_url)
+        `)
+        .eq('id', itemId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching complete item:', fetchError);
+        return null;
+      }
+
+      return {
+        ...completeItem,
+        images: completeItem.item_images || [],
+        owner: completeItem.profiles || {}
+      };
+    } catch (error) {
+      // Check if it's a foreign key violation error
+      if (error.code === '23503' && error.message.includes('owner_id_fkey')) {
+        throw new Error('User profile not found. Please log out and log in again.');
+      }
+      throw error;
     }
-
-    // Fetch the complete item with images
-    const { data: completeItem, error: fetchError } = await supabase
-      .from('items')
-      .select(`
-        *,
-        item_images (id, image_url, is_primary),
-        profiles:owner_id (full_name, avatar_url)
-      `)
-      .eq('id', itemId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching complete item:', fetchError);
-      return null;
-    }
-
-    return {
-      ...completeItem,
-      images: completeItem.item_images || [],
-      owner: completeItem.profiles || {}
-    };
   } catch (error) {
     console.error('Error in createItem:', error);
     throw error;
