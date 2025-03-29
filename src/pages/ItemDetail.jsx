@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Calendar, MapPin, Clock, Info, ArrowRight } from "lucide-react";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import MainLayout from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { format, addDays } from "date-fns";
+import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, differenceInDays, addDays } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 import { createRental } from "@/services/itemService";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarIcon, ChevronLeft, Star, MapPin, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -20,14 +19,24 @@ const ItemDetail = () => {
   const { user } = useAuth();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [rentalDuration, setRentalDuration] = useState(1);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [rentLoading, setRentLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [date, setDate] = useState({
+    from: new Date(),
+    to: addDays(new Date(), 2),
+  });
+  const [showDateSelector, setShowDateSelector] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Calculate rental days and total price
+  const rentalDays = date.to
+    ? differenceInDays(date.to, date.from) + 1
+    : 1;
+  const totalPrice = item?.price ? item.price * rentalDays : 0;
+
+  // Fetch item data
   useEffect(() => {
     const fetchItem = async () => {
+      setLoading(true);
       try {
         const { data, error } = await supabase
           .from("items")
@@ -40,21 +49,33 @@ const ItemDetail = () => {
           .single();
 
         if (error) {
-          throw error;
+          console.error("Error fetching item:", error);
+          toast.error("Failed to load item details");
+          navigate("/404");
+          return;
         }
 
-        // Format the item data
-        const formattedItem = {
+        if (!data) {
+          navigate("/404");
+          return;
+        }
+
+        // Format the data for display
+        setItem({
           ...data,
-          images: data.item_images || [],
-          owner: data.profiles || {},
-          location: data.location || "Not specified", // Add default location
-        };
-        
-        setItem(formattedItem);
+          images: data.item_images?.map((img) => img.image_url) || [],
+          owner: {
+            id: data.profiles?.id,
+            name: data.profiles?.full_name || "Unknown",
+            avatar: data.profiles?.avatar_url || "https://via.placeholder.com/150",
+            rating: 4.8, // Default rating
+          },
+          priceUnit: data.daily_rate ? "day" : "rental",
+        });
       } catch (error) {
-        console.error("Error fetching item:", error);
-        toast.error("Could not load item details");
+        console.error("Error:", error);
+        toast.error("An unexpected error occurred");
+        navigate("/404");
       } finally {
         setLoading(false);
       }
@@ -63,341 +84,329 @@ const ItemDetail = () => {
     if (id) {
       fetchItem();
     }
-  }, [id]);
+  }, [id, navigate]);
 
-  const handleRentNow = async () => {
+  const handleRent = async () => {
     if (!user) {
-      toast.error("Please log in to rent this item");
+      toast.error("Please sign in to rent this item");
       navigate("/auth");
       return;
     }
 
-    if (!selectedDate) {
-      toast.error("Please select a start date");
-      return;
-    }
-
-    if (user.id === item.owner_id) {
+    if (user.id === item.owner.id) {
       toast.error("You cannot rent your own item");
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      setRentLoading(true);
-      const startDate = selectedDate;
-      const endDate = addDays(startDate, rentalDuration);
-      const totalPrice = item.price * rentalDuration;
+      await createRental(
+        item.id,
+        date.from,
+        date.to,
+        totalPrice
+      );
 
-      await createRental(item.id, startDate, endDate, totalPrice);
       toast.success("Rental request submitted successfully!");
       navigate("/dashboard");
     } catch (error) {
       console.error("Error creating rental:", error);
-      toast.error("Failed to create rental request");
+      toast.error("Failed to submit rental request. Please try again.");
     } finally {
-      setRentLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <main className="py-28">
-          <div className="rentmate-container">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Image skeleton */}
-              <div>
-                <Skeleton className="rounded-xl w-full aspect-square mb-4" />
-                <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="rounded-lg w-20 h-20 flex-shrink-0" />
-                  ))}
-                </div>
-              </div>
-
-              {/* Details skeleton */}
-              <div className="glass p-6 rounded-2xl">
-                <Skeleton className="h-8 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2 mb-4" />
-                <div className="flex items-center mb-6">
-                  <Skeleton className="h-10 w-10 rounded-full mr-3" />
-                  <div>
-                    <Skeleton className="h-4 w-24 mb-1" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-                <Skeleton className="h-8 w-32 mb-4" />
-                <Skeleton className="h-20 w-full mb-6" />
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <Skeleton className="h-20 rounded-xl" />
-                  <Skeleton className="h-20 rounded-xl" />
-                </div>
-                <Skeleton className="h-8 w-40 mb-4" />
-                <Skeleton className="h-12 w-full mb-4" />
-                <Skeleton className="h-12 w-full mb-4" />
-                <Skeleton className="h-12 w-full mb-6" />
-                <Skeleton className="h-12 w-full mb-4" />
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </>
+  const handleNextImage = () => {
+    setCurrentImageIndex((prevIndex) =>
+      prevIndex === item.images.length - 1 ? 0 : prevIndex + 1
     );
-  }
-
-  if (!item) {
-    return (
-      <>
-        <Navbar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Item Not Found</h1>
-            <p className="mb-6">The item you're looking for doesn't exist or has been removed.</p>
-            <Button onClick={() => navigate("/browse")}>
-              Back to Browse
-            </Button>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
-
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setCalendarOpen(false);
   };
 
-  return (
-    <>
-      <Navbar />
-      <main className="py-28">
-        <div className="rentmate-container">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Image gallery */}
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prevIndex) =>
+      prevIndex === 0 ? item.images.length - 1 : prevIndex - 1
+    );
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto py-8 animate-pulse">
+          <div className="w-20 h-8 bg-gray-200 rounded mb-8"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="aspect-[4/3] bg-gray-200 rounded-xl"></div>
             <div>
-              <div className="rounded-xl overflow-hidden aspect-square mb-4">
-                {item.images && item.images.length > 0 ? (
+              <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
+              <div className="h-20 bg-gray-200 rounded mb-6"></div>
+              <div className="h-12 bg-gray-200 rounded mb-4"></div>
+              <div className="h-12 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Item not found
+  if (!item) return null;
+
+  return (
+    <MainLayout>
+      <div className="container mx-auto py-8">
+        <Link
+          to="/browse"
+          className="inline-flex items-center text-rentmate-orange mb-8 hover:underline"
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back to Browse
+        </Link>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Item Images */}
+          <div>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted shadow-subtle">
+              {item.images.length > 0 ? (
+                <>
                   <img
-                    src={item.images[activeImageIndex].image_url}
+                    src={item.images[currentImageIndex]}
                     alt={item.name}
                     className="w-full h-full object-cover"
-                    loading="eager"
                   />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    No images available
-                  </div>
-                )}
-              </div>
-              
-              {/* Thumbnail gallery */}
-              {item.images && item.images.length > 1 && (
-                <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {item.images.map((image, index) => (
-                    <div
-                      key={image.id}
-                      className={`cursor-pointer rounded-lg overflow-hidden w-20 h-20 flex-shrink-0 transition-all ${
-                        index === activeImageIndex
-                          ? "ring-2 ring-rentmate-orange"
-                          : "opacity-70 hover:opacity-100"
-                      }`}
-                      onClick={() => setActiveImageIndex(index)}
-                    >
-                      <img
-                        src={image.image_url}
-                        alt={`${item.name} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ))}
+                  
+                  {item.images.length > 1 && (
+                    <>
+                      <button
+                        onClick={handlePrevImage}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow flex items-center justify-center"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={handleNextImage}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow flex items-center justify-center rotate-180"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <span className="text-muted-foreground">No image available</span>
                 </div>
               )}
             </div>
 
-            {/* Item details */}
-            <div className="glass p-6 rounded-2xl">
-              <h1 className="text-2xl font-bold mb-2">{item.name}</h1>
-              
-              <div className="flex items-center text-sm text-muted-foreground mb-4">
-                <MapPin className="h-4 w-4 mr-1" />
-                <span>{item.location}</span>
-                <span className="mx-2">•</span>
-                <Clock className="h-4 w-4 mr-1" />
-                <span>
-                  Listed {new Date(item.created_at).toLocaleDateString()}
-                </span>
+            {item.images.length > 1 && (
+              <div className="flex mt-4 space-x-2 overflow-x-auto pb-2">
+                {item.images.map((imageUrl, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-16 h-16 rounded-md overflow-hidden shrink-0 ${
+                      currentImageIndex === index
+                        ? "ring-2 ring-rentmate-orange"
+                        : "opacity-70"
+                    }`}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`${item.name} thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
-              
-              <div className="flex items-center mb-6">
+            )}
+          </div>
+
+          {/* Item Details */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">{item.name}</h1>
+              <div className="flex items-center mt-2 space-x-4">
                 <div className="flex items-center">
-                  <img
-                    src={item.owner?.avatar_url || "/placeholder.svg"}
-                    alt={item.owner?.full_name || "Owner"}
-                    className="w-10 h-10 rounded-full mr-3"
-                    loading="lazy"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {item.owner?.full_name || "Anonymous"}
-                    </p>
-                    <div className="flex items-center text-xs text-rentmate-gold">
-                      <Star className="h-3 w-3 mr-1 fill-rentmate-gold" />
-                      <span>4.9</span>
-                    </div>
-                  </div>
+                  <Star className="h-4 w-4 text-rentmate-gold fill-rentmate-gold mr-1" />
+                  <span className="text-sm">{item.owner.rating}</span>
                 </div>
-              </div>
-              
-              <div className="flex items-baseline mb-4">
-                <span className="text-2xl font-bold text-rentmate-orange">
-                  ₹{item.price}
-                </span>
-                <span className="text-sm text-muted-foreground ml-1">
-                  / {item.daily_rate ? "day" : "rental"}
-                </span>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Description</h3>
-                <p className="text-muted-foreground">
-                  {item.description}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="glass p-3 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">Category</p>
-                  <p className="font-medium">
-                    {item.category || "Uncategorized"}
-                  </p>
-                </div>
-                <div className="glass p-3 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">Condition</p>
-                  <p className="font-medium">
-                    {item.condition || "Not specified"}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Rental form */}
-              <div>
-                <h3 className="text-lg font-medium mb-4">Reserve this item</h3>
-                
-                <div className="mb-4">
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {selectedDate ? (
-                          format(selectedDate, "PPP")
-                        ) : (
-                          <span>Pick a start date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={handleDateSelect}
-                        initialFocus
-                        disabled={(date) => date < new Date()}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2">
-                    Rental Duration (days)
-                  </label>
-                  <div className="flex items-center">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRentalDuration(Math.max(1, rentalDuration - 1))}
-                      disabled={rentalDuration <= 1}
-                    >
-                      -
-                    </Button>
-                    <span className="mx-4 font-medium">{rentalDuration}</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRentalDuration(rentalDuration + 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-                
-                {selectedDate && (
-                  <div className="glass p-4 rounded-xl mb-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm">Start Date</span>
-                      <span className="font-medium">
-                        {format(selectedDate, "MMM d, yyyy")}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm">End Date</span>
-                      <span className="font-medium">
-                        {format(
-                          addDays(selectedDate, rentalDuration),
-                          "MMM d, yyyy"
-                        )}
-                      </span>
-                    </div>
-                    <div className="border-t border-border pt-2 mt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Total</span>
-                        <span className="font-bold">
-                          ₹{item.price * rentalDuration}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <Button
-                  className="w-full bg-rentmate-orange hover:bg-rentmate-orange/90"
-                  size="lg"
-                  onClick={handleRentNow}
-                  disabled={!selectedDate || rentLoading}
-                >
-                  {rentLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      Rent Now <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-                
-                <div className="flex items-start mt-4 text-xs text-muted-foreground">
-                  <Info className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
-                  <p>
-                    Rental requests need to be accepted by the owner before they
-                    are confirmed. You will not be charged until the owner accepts
-                    your request.
-                  </p>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {item.location}
                 </div>
               </div>
             </div>
+
+            <div className="text-xl md:text-2xl font-bold">
+              ₹{item.price} <span className="text-sm font-normal">per {item.priceUnit}</span>
+            </div>
+
+            <div>
+              <h3 className="text-md font-medium mb-2">Description</h3>
+              <p className="text-muted-foreground">{item.description}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium mb-1">Category</h3>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {item.category || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium mb-1">Condition</h3>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {item.condition || "Not specified"}
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <img
+                    src={item.owner.avatar}
+                    alt={item.owner.name}
+                    className="w-10 h-10 rounded-full mr-3 object-cover"
+                  />
+                  <div>
+                    <p className="font-medium">{item.owner.name}</p>
+                    <p className="text-xs text-muted-foreground">Owner</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rental options */}
+            {showDateSelector ? (
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Select rental period</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDateSelector(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+
+                <div className="flex flex-col space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date.from ? (
+                              format(date.from, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={date.from}
+                            onSelect={(day) =>
+                              setDate((prev) => ({
+                                from: day,
+                                to: prev.to && day > prev.to ? addDays(day, 1) : prev.to,
+                              }))
+                            }
+                            initialFocus
+                            disabled={(date) => date < new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date.to ? (
+                              format(date.to, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={date.to}
+                            onSelect={(day) =>
+                              setDate((prev) => ({
+                                from: prev.from,
+                                to: day,
+                              }))
+                            }
+                            initialFocus
+                            disabled={(date) =>
+                              date < new Date() || (date?.from && date < date.from)
+                            }
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/30 p-3 rounded space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>₹{item.price.toFixed(0)} × {rentalDays} {rentalDays === 1 ? 'day' : 'days'}</span>
+                      <span>₹{totalPrice.toFixed(0)}</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between font-medium">
+                      <span>Total</span>
+                      <span>₹{totalPrice.toFixed(0)}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleRent}
+                    className="w-full bg-rentmate-orange hover:bg-rentmate-orange/90"
+                    disabled={isSubmitting || !date.from || !date.to}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Processing...
+                      </div>
+                    ) : (
+                      "Rent Now"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setShowDateSelector(true)}
+                className="w-full bg-rentmate-orange hover:bg-rentmate-orange/90"
+                disabled={user?.id === item.owner.id}
+              >
+                {user?.id === item.owner.id ? (
+                  <span className="flex items-center">
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Your Item
+                  </span>
+                ) : (
+                  "Rent This Item"
+                )}
+              </Button>
+            )}
           </div>
         </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </MainLayout>
   );
 };
 

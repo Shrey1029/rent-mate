@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Loader2, Package } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RentalItem {
@@ -48,6 +48,7 @@ const UserRentals: React.FC = () => {
     loadUserRentals();
   }, [user]);
 
+  // Loading skeleton
   if (isLoading) {
     return (
       <div>

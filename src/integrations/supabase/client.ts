@@ -14,11 +14,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   realtime: {
     timeout: 30000, // Increase timeout to avoid reconnections
   },
-  db: {
-    schema: 'public',
-  },
   global: {
-    fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
+    fetch: (...args) => fetch(...args),
   },
 });
 
