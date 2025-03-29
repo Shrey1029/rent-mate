@@ -93,7 +93,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, featured = false }) => {
         </p>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-lg font-bold text-primary">₹{(item.price * 83).toFixed(0)}</span>
+            <span className="text-lg font-bold text-primary">₹{item.price.toFixed(0)}</span>
             <span className="text-sm text-muted-foreground">/{item.priceUnit}</span>
           </div>
           <div className="flex items-center text-sm">

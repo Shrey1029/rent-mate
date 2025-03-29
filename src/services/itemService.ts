@@ -163,6 +163,7 @@ const uploadImage = async (file: File, itemId: string): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${itemId}/${uuidv4()}.${fileExt}`;
     
+    // Upload to the item_images bucket
     const { error: uploadError } = await supabase.storage
       .from('item_images')
       .upload(fileName, file, {
