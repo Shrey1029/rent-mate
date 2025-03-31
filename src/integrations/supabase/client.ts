@@ -14,9 +14,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   realtime: {
     timeout: 30000, // Increase timeout to avoid reconnections
   },
-  global: {
-    fetch: (url, options) => fetch(url, options),
-  },
 });
 
 // Helper function to refresh schema cache - call when getting schema errors

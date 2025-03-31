@@ -53,7 +53,7 @@ export const fetchItems = async (): Promise<ItemWithImages[]> => {
     .select(`
       *,
       item_images (id, image_url, is_primary),
-      profiles:owner_id (full_name, avatar_url)
+      profiles:owner_id (id, full_name, avatar_url)
     `)
     .order('created_at', { ascending: false });
 
@@ -65,8 +65,15 @@ export const fetchItems = async (): Promise<ItemWithImages[]> => {
   // Transform the data to match our ItemWithImages type
   return (data || []).map((item: any) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map((img: any) => img.image_url) || [],
+    owner: {
+      id: item.profiles?.id || '',
+      name: item.profiles?.full_name || 'Unknown User',
+      avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
+      rating: 4.8 // Default rating
+    },
+    price: parseInt(item.price), // Ensure price is a number
+    priceUnit: item.daily_rate ? "day" : "rental",
     location: item.location || 'Not specified'
   }));
 };
@@ -78,7 +85,7 @@ export const fetchUserItems = async (userId: string): Promise<ItemWithImages[]> 
     .select(`
       *,
       item_images (id, image_url, is_primary),
-      profiles:owner_id (full_name, avatar_url)
+      profiles:owner_id (id, full_name, avatar_url)
     `)
     .eq('owner_id', userId)
     .order('created_at', { ascending: false });
@@ -90,8 +97,15 @@ export const fetchUserItems = async (userId: string): Promise<ItemWithImages[]> 
 
   return (data || []).map((item: any) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map((img: any) => img.image_url) || [],
+    owner: {
+      id: item.profiles?.id || '',
+      name: item.profiles?.full_name || 'Unknown User',
+      avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
+      rating: 4.8 // Default rating
+    },
+    price: parseInt(item.price), // Ensure price is a number
+    priceUnit: item.daily_rate ? "day" : "rental",
     location: item.location || 'Not specified'
   }));
 };
@@ -105,7 +119,7 @@ export const fetchUserRentals = async (userId: string): Promise<any[]> => {
       items (
         *,
         item_images (id, image_url, is_primary),
-        profiles:owner_id (full_name, avatar_url)
+        profiles:owner_id (id, full_name, avatar_url)
       )
     `)
     .eq('renter_id', userId)
@@ -120,9 +134,16 @@ export const fetchUserRentals = async (userId: string): Promise<any[]> => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
-      owner: rental.items.profiles || {},
-      location: rental.items.location || 'Not specified'
+      images: rental.items?.item_images?.map((img: any) => img.image_url) || [],
+      owner: {
+        id: rental.items?.profiles?.id || '',
+        name: rental.items?.profiles?.full_name || 'Unknown User',
+        avatar: rental.items?.profiles?.avatar_url || 'https://via.placeholder.com/150',
+        rating: 4.8 // Default rating
+      },
+      price: parseInt(rental.items?.price), // Ensure price is a number
+      priceUnit: rental.items?.daily_rate ? "day" : "rental",
+      location: rental.items?.location || 'Not specified'
     }
   }));
 };
@@ -137,7 +158,7 @@ export const fetchOwnerRentals = async (userId: string): Promise<any[]> => {
         *,
         item_images (id, image_url, is_primary)
       ),
-      renter:renter_id (full_name, avatar_url)
+      renter:renter_id (id, full_name, avatar_url)
     `)
     .eq('items.owner_id', userId)
     .order('created_at', { ascending: false });
@@ -151,8 +172,15 @@ export const fetchOwnerRentals = async (userId: string): Promise<any[]> => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
-      location: rental.items.location || 'Not specified'
+      images: rental.items?.item_images?.map((img: any) => img.image_url) || [],
+      price: parseInt(rental.items?.price), // Ensure price is a number
+      priceUnit: rental.items?.daily_rate ? "day" : "rental",
+      location: rental.items?.location || 'Not specified'
+    },
+    renter: {
+      id: rental.renter?.id || '',
+      name: rental.renter?.full_name || 'Unknown User',
+      avatar: rental.renter?.avatar_url || 'https://via.placeholder.com/150'
     }
   }));
 };
@@ -288,7 +316,7 @@ export const createItem = async (
         .select(`
           *,
           item_images (id, image_url, is_primary),
-          profiles:owner_id (full_name, avatar_url)
+          profiles:owner_id (id, full_name, avatar_url)
         `)
         .eq('id', itemId)
         .single();
@@ -300,8 +328,16 @@ export const createItem = async (
 
       return {
         ...completeItem,
-        images: completeItem.item_images || [],
-        owner: completeItem.profiles || {}
+        images: completeItem.item_images?.map((img: any) => img.image_url) || [],
+        owner: {
+          id: completeItem.profiles?.id || '',
+          name: completeItem.profiles?.full_name || 'Unknown User',
+          avatar: completeItem.profiles?.avatar_url || 'https://via.placeholder.com/150',
+          rating: 4.8 // Default rating
+        },
+        price: parseInt(completeItem.price),
+        priceUnit: completeItem.daily_rate ? "day" : "rental",
+        location: completeItem.location || 'Not specified'
       } as ItemWithImages;
     } catch (error: any) {
       // Check if it's a foreign key violation error

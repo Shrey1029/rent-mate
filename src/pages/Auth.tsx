@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -108,13 +109,6 @@ const Auth = () => {
     setError("");
     
     try {
-      // We'll disable Google sign-in since it might be causing the provider not enabled error
-      setError("Google sign-in is currently disabled. Please use email/password.");
-      toast.error("Google sign-in is currently disabled. Please use email/password.");
-      setIsLoading(false);
-      return;
-      
-      /* Original Google sign-in code commented out
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -123,13 +117,12 @@ const Auth = () => {
       });
       
       if (error) throw error;
-      */
     } catch (error) {
       let errorMessage = error.message || "An error occurred during Google authentication";
       
       // Handle specific error cases
       if (error.message.includes("provider is not enabled")) {
-        errorMessage = "Google sign-in is not enabled for this app.";
+        errorMessage = "Google sign-in is not enabled for this app. Please check Supabase settings.";
       }
       
       setError(errorMessage);
