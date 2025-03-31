@@ -100,8 +100,9 @@ const ItemDetail = () => {
 
     setIsSubmitting(true);
     try {
+      // Make sure we're passing id as a string, not a number
       await createRental(
-        item.id,
+        item.id.toString(),
         date.from,
         date.to,
         totalPrice
