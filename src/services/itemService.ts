@@ -354,7 +354,7 @@ export const createItem = async (
 
 // Create rental with better error handling
 export const createRental = async (
-  itemId: string,
+  itemId: string,  // Changed type to string to match function usage
   startDate: Date,
   endDate: Date,
   totalPrice: number
@@ -365,6 +365,8 @@ export const createRental = async (
     if (userError || !userData.user) {
       throw new Error('User not authenticated');
     }
+
+    console.log('Creating rental for item:', itemId, 'by user:', userData.user.id);
 
     const { data, error } = await supabase
       .from('rentals')
