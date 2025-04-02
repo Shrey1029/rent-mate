@@ -431,3 +431,79 @@ export const updateRentalStatus = async (
     throw error;
   }
 };
+
+// Delete an item and its associated images
+export const deleteItem = async (itemId: string): Promise<boolean> => {
+  try {
+    console.log('Deleting item:', itemId);
+    
+    // First delete all associated images
+    const { data: imageData, error: imageError } = await supabase
+      .from('item_images')
+      .select('id, image_url')
+      .eq('item_id', itemId);
+      
+    if (imageError) {
+      console.error('Error fetching item images to delete:', imageError);
+      // Continue with deletion even if fetching images fails
+    }
+    
+    // If there are images, delete them from storage
+    if (imageData && imageData.length > 0) {
+      console.log(`Found ${imageData.length} images to delete from storage`);
+      
+      // Extract file paths from image URLs
+      const imagePaths = imageData.map(img => {
+        // The URL format is https://[domain]/storage/v1/object/public/item_images/[path]
+        const urlParts = img.image_url.split('item_images/');
+        if (urlParts.length > 1) {
+          return urlParts[1];
+        }
+        return null;
+      }).filter(Boolean);
+      
+      if (imagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('item_images')
+          .remove(imagePaths as string[]);
+          
+        if (storageError) {
+          console.error('Error deleting images from storage:', storageError);
+          // Continue with deletion even if storage deletion fails
+        } else {
+          console.log('Successfully deleted images from storage');
+        }
+      }
+      
+      // Delete image records from the database
+      const { error: deleteImagesError } = await supabase
+        .from('item_images')
+        .delete()
+        .eq('item_id', itemId);
+        
+      if (deleteImagesError) {
+        console.error('Error deleting image records:', deleteImagesError);
+        // Continue with item deletion even if image deletion fails
+      } else {
+        console.log('Successfully deleted image records from database');
+      }
+    }
+    
+    // Finally delete the item itself
+    const { error: deleteItemError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId);
+      
+    if (deleteItemError) {
+      console.error('Error deleting item:', deleteItemError);
+      throw deleteItemError;
+    }
+    
+    console.log('Item successfully deleted');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteItem:', error);
+    return false;
+  }
+};

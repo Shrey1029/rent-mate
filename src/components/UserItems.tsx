@@ -83,6 +83,11 @@ const UserItems: React.FC = () => {
     toast.success("Item listed successfully!");
   };
 
+  const handleDeleteItem = (deletedItemId: string) => {
+    // Update the items state to remove the deleted item
+    setItems(prevItems => prevItems.filter(item => item.id !== deletedItemId));
+  };
+
   if (loading) {
     return (
       <div>
@@ -146,7 +151,12 @@ const UserItems: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => (
-            <ItemCard key={item.id} item={item} />
+            <ItemCard 
+              key={item.id} 
+              item={item} 
+              showDeleteButton={true}
+              onDelete={handleDeleteItem}
+            />
           ))}
         </div>
       )}
