@@ -1,5 +1,4 @@
-
-import { supabase, ensureUserProfile, refreshSchemaCache } from '@/integrations/supabase/client';
+import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define types for clarity
@@ -188,25 +187,13 @@ export const fetchOwnerRentals = async (userId: string): Promise<any[]> => {
 // Optimize image upload process
 const uploadImage = async (file: File, itemId: string): Promise<string> => {
   try {
+    // Ensure the item_images bucket exists
+    await ensureStorageBucket('item_images', true);
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${itemId}/${uuidv4()}.${fileExt}`;
     
-    // Check if item_images bucket exists, create if it doesn't
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === 'item_images');
-    
-    if (!bucketExists) {
-      console.log('Creating item_images bucket...');
-      const { error: bucketError } = await supabase.storage.createBucket('item_images', {
-        public: true,
-        fileSizeLimit: 5242880 // 5MB
-      });
-      
-      if (bucketError) {
-        console.error('Error creating bucket:', bucketError);
-        throw bucketError;
-      }
-    }
+    console.log(`Uploading file: ${fileName}, size: ${file.size} bytes`);
     
     // Upload to the item_images bucket
     const { error: uploadError } = await supabase.storage
@@ -246,6 +233,12 @@ export const createItem = async (
     const profileExists = await ensureUserProfile(userId);
     if (!profileExists) {
       throw new Error('Failed to validate user profile. Please try again or log out and back in.');
+    }
+    
+    // Ensure item_images bucket exists before uploading
+    const bucketExists = await ensureStorageBucket('item_images', true);
+    if (!bucketExists) {
+      throw new Error('Failed to create storage bucket. Please try again later.');
     }
     
     // If schema cache issue occurs, try to refresh it first
