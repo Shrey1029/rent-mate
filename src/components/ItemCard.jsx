@@ -13,6 +13,8 @@ const ItemCard = ({ item, featured = false }) => {
     ? item.images[0] 
     : 'https://via.placeholder.com/400x300?text=No+Image';
 
+  console.log('Rendering ItemCard with image:', imageUrl);
+
   return (
     <div
       className={cn(

@@ -1,5 +1,4 @@
-
-import { supabase, ensureUserProfile, refreshSchemaCache } from '@/integrations/supabase/client';
+import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define types for clarity
@@ -188,25 +187,13 @@ export const fetchOwnerRentals = async (userId: string): Promise<any[]> => {
 // Optimize image upload process
 const uploadImage = async (file: File, itemId: string): Promise<string> => {
   try {
+    // Ensure the item_images bucket exists
+    await ensureStorageBucket('item_images', true);
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${itemId}/${uuidv4()}.${fileExt}`;
     
-    // Check if item_images bucket exists, create if it doesn't
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === 'item_images');
-    
-    if (!bucketExists) {
-      console.log('Creating item_images bucket...');
-      const { error: bucketError } = await supabase.storage.createBucket('item_images', {
-        public: true,
-        fileSizeLimit: 5242880 // 5MB
-      });
-      
-      if (bucketError) {
-        console.error('Error creating bucket:', bucketError);
-        throw bucketError;
-      }
-    }
+    console.log(`Uploading file: ${fileName}, size: ${file.size} bytes`);
     
     // Upload to the item_images bucket
     const { error: uploadError } = await supabase.storage
@@ -246,6 +233,12 @@ export const createItem = async (
     const profileExists = await ensureUserProfile(userId);
     if (!profileExists) {
       throw new Error('Failed to validate user profile. Please try again or log out and back in.');
+    }
+    
+    // Ensure item_images bucket exists before uploading
+    const bucketExists = await ensureStorageBucket('item_images', true);
+    if (!bucketExists) {
+      throw new Error('Failed to create storage bucket. Please try again later.');
     }
     
     // If schema cache issue occurs, try to refresh it first
@@ -436,5 +429,81 @@ export const updateRentalStatus = async (
   } catch (error) {
     console.error('Error in updateRentalStatus:', error);
     throw error;
+  }
+};
+
+// Delete an item and its associated images
+export const deleteItem = async (itemId: string): Promise<boolean> => {
+  try {
+    console.log('Deleting item:', itemId);
+    
+    // First delete all associated images
+    const { data: imageData, error: imageError } = await supabase
+      .from('item_images')
+      .select('id, image_url')
+      .eq('item_id', itemId);
+      
+    if (imageError) {
+      console.error('Error fetching item images to delete:', imageError);
+      // Continue with deletion even if fetching images fails
+    }
+    
+    // If there are images, delete them from storage
+    if (imageData && imageData.length > 0) {
+      console.log(`Found ${imageData.length} images to delete from storage`);
+      
+      // Extract file paths from image URLs
+      const imagePaths = imageData.map(img => {
+        // The URL format is https://[domain]/storage/v1/object/public/item_images/[path]
+        const urlParts = img.image_url.split('item_images/');
+        if (urlParts.length > 1) {
+          return urlParts[1];
+        }
+        return null;
+      }).filter(Boolean);
+      
+      if (imagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('item_images')
+          .remove(imagePaths as string[]);
+          
+        if (storageError) {
+          console.error('Error deleting images from storage:', storageError);
+          // Continue with deletion even if storage deletion fails
+        } else {
+          console.log('Successfully deleted images from storage');
+        }
+      }
+      
+      // Delete image records from the database
+      const { error: deleteImagesError } = await supabase
+        .from('item_images')
+        .delete()
+        .eq('item_id', itemId);
+        
+      if (deleteImagesError) {
+        console.error('Error deleting image records:', deleteImagesError);
+        // Continue with item deletion even if image deletion fails
+      } else {
+        console.log('Successfully deleted image records from database');
+      }
+    }
+    
+    // Finally delete the item itself
+    const { error: deleteItemError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId);
+      
+    if (deleteItemError) {
+      console.error('Error deleting item:', deleteItemError);
+      throw deleteItemError;
+    }
+    
+    console.log('Item successfully deleted');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteItem:', error);
+    return false;
   }
 };

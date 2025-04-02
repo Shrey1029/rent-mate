@@ -72,3 +72,34 @@ export const ensureUserProfile = async (userId: string) => {
     return false;
   }
 };
+
+// Helper function to ensure a storage bucket exists
+export const ensureStorageBucket = async (bucketName: string, isPublic: boolean = true) => {
+  try {
+    // Check if bucket exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    
+    if (!bucketExists) {
+      console.log(`Creating storage bucket: ${bucketName}`);
+      const { error } = await supabase.storage.createBucket(bucketName, {
+        public: isPublic,
+        fileSizeLimit: 5242880 // 5MB
+      });
+      
+      if (error) {
+        console.error(`Error creating bucket ${bucketName}:`, error);
+        return false;
+      }
+      
+      console.log(`Successfully created bucket: ${bucketName}`);
+    } else {
+      console.log(`Bucket ${bucketName} already exists`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error in ensureStorageBucket for ${bucketName}:`, error);
+    return false;
+  }
+};
