@@ -59,6 +59,7 @@ const CreateItemForm: React.FC<CreateItemFormProps> = ({ onSuccess, onCancel }) 
         throw new Error('Price must be a number.');
       }
 
+      console.log('Submitting form with images:', images);
       await createItem(
         {
           name,
@@ -97,6 +98,7 @@ const CreateItemForm: React.FC<CreateItemFormProps> = ({ onSuccess, onCancel }) 
       return true;
     });
     
+    console.log('Selected images:', validFiles);
     setImages(validFiles);
   };
 

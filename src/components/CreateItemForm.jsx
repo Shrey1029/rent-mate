@@ -53,6 +53,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
         throw new Error('Price must be a number.');
       }
 
+      console.log('Submitting form with images:', images);
       await createItem(
         {
           name,
@@ -91,6 +92,7 @@ const CreateItemForm = ({ onSuccess, onCancel }) => {
       return true;
     });
     
+    console.log('Selected images:', validFiles);
     setImages(validFiles);
   };
 

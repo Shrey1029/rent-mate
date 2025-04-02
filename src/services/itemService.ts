@@ -42,7 +42,7 @@ interface ItemInsert {
 }
 
 interface ItemWithImages extends ItemData {
-  images: ItemImage[];
+  images: string[];
   owner: ItemOwner;
 }
 
@@ -72,7 +72,7 @@ export const fetchItems = async (): Promise<ItemWithImages[]> => {
       avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
       rating: 4.8 // Default rating
     },
-    price: parseInt(item.price), // Ensure price is a number
+    price: Number(item.price), // Ensure price is a number
     priceUnit: item.daily_rate ? "day" : "rental",
     location: item.location || 'Not specified'
   }));
@@ -104,7 +104,7 @@ export const fetchUserItems = async (userId: string): Promise<ItemWithImages[]> 
       avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
       rating: 4.8 // Default rating
     },
-    price: parseInt(item.price), // Ensure price is a number
+    price: Number(item.price), // Ensure price is a number
     priceUnit: item.daily_rate ? "day" : "rental",
     location: item.location || 'Not specified'
   }));
@@ -191,6 +191,23 @@ const uploadImage = async (file: File, itemId: string): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${itemId}/${uuidv4()}.${fileExt}`;
     
+    // Check if item_images bucket exists, create if it doesn't
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === 'item_images');
+    
+    if (!bucketExists) {
+      console.log('Creating item_images bucket...');
+      const { error: bucketError } = await supabase.storage.createBucket('item_images', {
+        public: true,
+        fileSizeLimit: 5242880 // 5MB
+      });
+      
+      if (bucketError) {
+        console.error('Error creating bucket:', bucketError);
+        throw bucketError;
+      }
+    }
+    
     // Upload to the item_images bucket
     const { error: uploadError } = await supabase.storage
       .from('item_images')
@@ -208,6 +225,7 @@ const uploadImage = async (file: File, itemId: string): Promise<string> => {
       .from('item_images')
       .getPublicUrl(fileName);
 
+    console.log('Image uploaded successfully:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('Error in uploadImage:', error);
@@ -222,6 +240,8 @@ export const createItem = async (
   images: File[]
 ): Promise<ItemWithImages | null> => {
   try {
+    console.log('Creating item with images:', images.length);
+    
     // Ensure user profile exists before creating item
     const profileExists = await ensureUserProfile(userId);
     if (!profileExists) {
@@ -283,31 +303,33 @@ export const createItem = async (
       }
 
       const itemId = itemData.id;
+      console.log('Item created with ID:', itemId);
       
       // Process images in parallel for better performance
       if (images.length > 0) {
-        const imagePromises = [];
+        console.log('Processing', images.length, 'images');
         
         // Upload all images in parallel
         const uploadPromises = images.map(file => uploadImage(file, itemId));
         const imageUrls = await Promise.all(uploadPromises);
+        console.log('Image URLs:', imageUrls);
         
         // Create image records
         for (let i = 0; i < imageUrls.length; i++) {
           const imageUrl = imageUrls[i];
-          imagePromises.push(
-            supabase
-              .from('item_images')
-              .insert({
-                item_id: itemId,
-                image_url: imageUrl,
-                is_primary: i === 0 // First image is primary
-              })
-          );
+          const { error: imageError } = await supabase
+            .from('item_images')
+            .insert({
+              item_id: itemId,
+              image_url: imageUrl,
+              is_primary: i === 0 // First image is primary
+            });
+            
+          if (imageError) {
+            console.error('Error inserting image record:', imageError);
+            // Continue with other images even if one fails
+          }
         }
-        
-        // Wait for all image insertions
-        await Promise.all(imagePromises);
       }
 
       // Fetch the complete item with images
@@ -335,7 +357,7 @@ export const createItem = async (
           avatar: completeItem.profiles?.avatar_url || 'https://via.placeholder.com/150',
           rating: 4.8 // Default rating
         },
-        price: parseInt(completeItem.price),
+        price: Number(completeItem.price),
         priceUnit: completeItem.daily_rate ? "day" : "rental",
         location: completeItem.location || 'Not specified'
       } as ItemWithImages;
@@ -354,7 +376,7 @@ export const createItem = async (
 
 // Create rental with better error handling
 export const createRental = async (
-  itemId: string,  // Changed type to string to match function usage
+  itemId: string,
   startDate: Date,
   endDate: Date,
   totalPrice: number

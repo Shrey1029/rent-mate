@@ -32,6 +32,11 @@ interface ItemCardProps {
 const ItemCard: React.FC<ItemCardProps> = ({ item, featured = false }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  
+  // Default placeholder image if no images are available
+  const imageUrl = item.images && item.images.length > 0 
+    ? item.images[0] 
+    : 'https://via.placeholder.com/400x300?text=No+Image';
 
   return (
     <div
@@ -50,13 +55,18 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, featured = false }) => {
           <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
         </div>
         <img
-          src={item.images[0]}
+          src={imageUrl}
           alt={item.name}
           className={cn(
             "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
             isLoaded ? "opacity-100" : "opacity-0"
           )}
           onLoad={() => setIsLoaded(true)}
+          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+            console.error('Image failed to load');
+            e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Error';
+            setIsLoaded(true);
+          }}
         />
         <button
           onClick={(e) => {
@@ -107,6 +117,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, featured = false }) => {
               src={item.owner.avatar}
               alt={item.owner.name}
               className="w-6 h-6 rounded-full mr-2"
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                e.currentTarget.src = 'https://via.placeholder.com/150';
+              }}
             />
             <span className="text-xs text-muted-foreground">
               {item.owner.name}
