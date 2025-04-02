@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
@@ -74,7 +73,7 @@ export const ensureUserProfile = async (userId: string) => {
 };
 
 // Helper function to ensure a storage bucket exists
-export const ensureStorageBucket = async (bucketName: string, isPublic: boolean = true) => {
+export const ensureStorageBucket = async (bucketName: string, isPublic: boolean = false) => {
   try {
     // Check if bucket exists
     const { data: buckets } = await supabase.storage.listBuckets();

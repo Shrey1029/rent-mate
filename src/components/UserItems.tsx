@@ -86,6 +86,7 @@ const UserItems: React.FC = () => {
   const handleDeleteItem = (deletedItemId: string) => {
     // Update the items state to remove the deleted item
     setItems(prevItems => prevItems.filter(item => item.id !== deletedItemId));
+    toast.success("Item deleted successfully");
   };
 
   if (loading) {

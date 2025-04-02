@@ -332,3 +332,64 @@ export const updateRentalStatus = async (
     throw error;
   }
 };
+
+// Add delete item functionality
+export const deleteItem = async (itemId) => {
+  try {
+    // Get user authentication
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      throw new Error('User not authenticated');
+    }
+    
+    // First, delete all images associated with the item from storage
+    // Get the item images
+    const { data: imageData, error: imageError } = await supabase
+      .from('item_images')
+      .select('image_url')
+      .eq('item_id', itemId);
+      
+    if (imageError) {
+      console.error('Error fetching item images:', imageError);
+    } else if (imageData && imageData.length > 0) {
+      // Extract paths from image URLs and delete them
+      const imagePaths = imageData.map(img => {
+        // Extract the path after the last '/storage/v1/object/public/item_images/'
+        const fullPath = img.image_url;
+        const pathParts = fullPath.split('item_images/');
+        if (pathParts.length > 1) {
+          return pathParts[1];
+        }
+        return null;
+      }).filter(Boolean);
+      
+      // Delete images from storage if paths were extracted
+      if (imagePaths.length > 0) {
+        const { error: deleteStorageError } = await supabase.storage
+          .from('item_images')
+          .remove(imagePaths);
+          
+        if (deleteStorageError) {
+          console.error('Error deleting images from storage:', deleteStorageError);
+        }
+      }
+    }
+    
+    // Delete the item from the database
+    // This will cascade delete the item_images records due to foreign key constraints
+    const { error: deleteError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId);
+      
+    if (deleteError) {
+      console.error('Error deleting item:', deleteError);
+      throw deleteError;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in deleteItem:', error);
+    throw error;
+  }
+};
