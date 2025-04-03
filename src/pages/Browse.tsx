@@ -33,6 +33,7 @@ const Browse = () => {
       setLoading(true);
       try {
         const items = await fetchItems();
+        console.log("Fetched items:", items);
         setAllItems(items);
         setLoading(false);
       } catch (error) {
@@ -84,6 +85,7 @@ const Browse = () => {
       );
     }
 
+    console.log("Filtered items:", filtered);
     setFilteredItems(filtered);
   }, [selectedCategory, selectedCondition, priceRange, initialSearch, initialLocation, allItems]);
 

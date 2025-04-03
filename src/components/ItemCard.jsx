@@ -98,7 +98,7 @@ const ItemCard = ({
             )}
             onLoad={() => setIsLoaded(true)}
             onError={(e) => {
-              console.error('Image failed to load');
+              console.error('Image failed to load:', imageUrl);
               e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
               setIsLoaded(true);
             }}
