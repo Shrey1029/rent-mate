@@ -58,10 +58,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  console.log('Rendering ItemCard with showDeleteButton:', showDeleteButton);
-  console.log('item owner id:', item.owner?.id);
-  console.log('current user id:', user?.id);
-  
   // Default placeholder image if no images are available
   const imageUrl = item.images && item.images.length > 0 
     ? item.images[0] 
@@ -101,9 +97,8 @@ const ItemCard: React.FC<ItemCardProps> = ({
     setShowDeleteDialog(false);
   };
 
-  const goBack = () => {
-    navigate(-1);
-  };
+  // Check if current user is the owner of the item
+  const isOwner = user && item.owner && user.id === item.owner.id;
 
   return (
     <>
@@ -153,11 +148,12 @@ const ItemCard: React.FC<ItemCardProps> = ({
               />
             </button>
             
-            {showDeleteButton && user?.id === item.owner.id && (
+            {showDeleteButton && isOwner && (
               <button
                 onClick={handleDelete}
                 className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white hover:text-red-500 transition-colors"
                 aria-label="Delete item"
+                data-testid="delete-item-button"
               >
                 <Trash2 className="h-5 w-5" />
               </button>

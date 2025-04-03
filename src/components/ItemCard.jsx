@@ -69,6 +69,9 @@ const ItemCard = ({
     setShowDeleteDialog(false);
   };
 
+  // Check if current user is the owner of the item
+  const isOwner = user && item.owner && user.id === item.owner.id;
+
   return (
     <>
       <div
@@ -117,11 +120,12 @@ const ItemCard = ({
               />
             </button>
             
-            {showDeleteButton && (
+            {showDeleteButton && isOwner && (
               <button
                 onClick={handleDelete}
                 className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white hover:text-red-500 transition-colors"
                 aria-label="Delete item"
+                data-testid="delete-item-button"
               >
                 <Trash2 className="h-5 w-5" />
               </button>
