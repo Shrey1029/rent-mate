@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Star, Trash2 } from "lucide-react";
+import { Heart, Star, Trash2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { deleteItem } from "@/services/itemService";
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export interface ItemOwner {
   id: string;
@@ -62,8 +63,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
     ? item.images[0] 
     : 'https://via.placeholder.com/400x300?text=No+Image';
 
-  console.log('Rendering ItemCard with image:', imageUrl);
-
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to item detail
     e.stopPropagation(); // Stop event propagation
@@ -98,11 +97,15 @@ const ItemCard: React.FC<ItemCardProps> = ({
     setShowDeleteDialog(false);
   };
 
+  const goBack = () => {
+    navigate(-1);
+  };
+
   return (
     <>
       <div
         className={cn(
-          "group relative rounded-2xl overflow-hidden animated-card bg-white",
+          "group relative rounded-2xl overflow-hidden animated-card bg-white transition-all duration-300 hover:shadow-md",
           featured ? "shadow-lg" : "shadow-subtle"
         )}
       >
@@ -136,6 +139,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
                 setIsLiked(!isLiked);
               }}
               className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+              aria-label={isLiked ? "Unlike item" : "Like item"}
             >
               <Heart
                 className={cn(
@@ -167,7 +171,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
           )}
         </div>
 
-        <Link to={`/item/${item.id}`} className="block p-4">
+        <Link to={`/item/${item.id}`} className="block p-4 hover:bg-gray-50 transition-colors">
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="card-title text-base font-semibold line-clamp-1">{item.name}</h3>
           </div>

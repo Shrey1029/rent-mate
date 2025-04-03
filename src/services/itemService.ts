@@ -1,3 +1,4 @@
+
 import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -47,34 +48,43 @@ interface ItemWithImages extends ItemData {
 
 // Fetch all items with improved performance
 export const fetchItems = async (): Promise<ItemWithImages[]> => {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`
-      *,
-      item_images (id, image_url, is_primary),
-      profiles:owner_id (id, full_name, avatar_url)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    console.log("Fetching all items from Supabase");
+    
+    const { data, error } = await supabase
+      .from('items')
+      .select(`
+        *,
+        item_images (id, image_url, is_primary),
+        profiles:owner_id (id, full_name, avatar_url)
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching items:', error);
+    if (error) {
+      console.error('Error fetching items:', error);
+      throw error;
+    }
+
+    console.log(`Retrieved ${data?.length || 0} items from database`);
+
+    // Transform the data to match our ItemWithImages type
+    return (data || []).map((item: any) => ({
+      ...item,
+      images: item.item_images?.map((img: any) => img.image_url) || [],
+      owner: {
+        id: item.profiles?.id || '',
+        name: item.profiles?.full_name || 'Unknown User',
+        avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
+        rating: 4.8 // Default rating
+      },
+      price: Number(item.price), // Ensure price is a number
+      priceUnit: item.daily_rate ? "day" : "rental",
+      location: item.location || 'Not specified'
+    }));
+  } catch (error) {
+    console.error("Error in fetchItems:", error);
     throw error;
   }
-
-  // Transform the data to match our ItemWithImages type
-  return (data || []).map((item: any) => ({
-    ...item,
-    images: item.item_images?.map((img: any) => img.image_url) || [],
-    owner: {
-      id: item.profiles?.id || '',
-      name: item.profiles?.full_name || 'Unknown User',
-      avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
-      rating: 4.8 // Default rating
-    },
-    price: Number(item.price), // Ensure price is a number
-    priceUnit: item.daily_rate ? "day" : "rental",
-    location: item.location || 'Not specified'
-  }));
 };
 
 // Fetch user's items
