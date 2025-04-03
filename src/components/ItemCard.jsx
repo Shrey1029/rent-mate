@@ -35,11 +35,6 @@ const ItemCard = ({
     ? item.images[0] 
     : 'https://via.placeholder.com/400x300?text=No+Image';
 
-  console.log('Rendering ItemCard with image:', imageUrl);
-  console.log('showDeleteButton:', showDeleteButton);
-  console.log('item.owner.id:', item.owner?.id);
-  console.log('user?.id:', user?.id);
-
   const handleDelete = async (e) => {
     e.preventDefault(); // Prevent navigation to item detail
     e.stopPropagation(); // Stop event propagation
@@ -122,7 +117,7 @@ const ItemCard = ({
               />
             </button>
             
-            {showDeleteButton && item.owner && user && user.id === item.owner.id && (
+            {showDeleteButton && (
               <button
                 onClick={handleDelete}
                 className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white hover:text-red-500 transition-colors"
