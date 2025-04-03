@@ -36,6 +36,9 @@ const ItemCard = ({
     : 'https://via.placeholder.com/400x300?text=No+Image';
 
   console.log('Rendering ItemCard with image:', imageUrl);
+  console.log('showDeleteButton:', showDeleteButton);
+  console.log('item.owner.id:', item.owner?.id);
+  console.log('user?.id:', user?.id);
 
   const handleDelete = async (e) => {
     e.preventDefault(); // Prevent navigation to item detail
@@ -75,7 +78,7 @@ const ItemCard = ({
     <>
       <div
         className={cn(
-          "group relative rounded-2xl overflow-hidden animated-card bg-white",
+          "group relative rounded-2xl overflow-hidden animated-card bg-white transition-all duration-300 hover:shadow-md",
           featured ? "shadow-lg" : "shadow-subtle"
         )}
       >
@@ -109,6 +112,7 @@ const ItemCard = ({
                 setIsLiked(!isLiked);
               }}
               className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+              aria-label={isLiked ? "Unlike item" : "Like item"}
             >
               <Heart
                 className={cn(
@@ -140,7 +144,7 @@ const ItemCard = ({
           )}
         </div>
 
-        <Link to={`/item/${item.id}`} className="block p-4">
+        <Link to={`/item/${item.id}`} className="block p-4 hover:bg-gray-50 transition-colors">
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="card-title text-base font-semibold line-clamp-1">{item.name}</h3>
           </div>

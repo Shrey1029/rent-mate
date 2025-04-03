@@ -58,6 +58,10 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  console.log('Rendering ItemCard with showDeleteButton:', showDeleteButton);
+  console.log('item owner id:', item.owner?.id);
+  console.log('current user id:', user?.id);
+  
   // Default placeholder image if no images are available
   const imageUrl = item.images && item.images.length > 0 
     ? item.images[0] 
