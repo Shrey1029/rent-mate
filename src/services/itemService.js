@@ -1,8 +1,10 @@
-import { supabase, ensureUserProfile, refreshSchemaCache } from '@/integrations/supabase/client';
+
+import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Fetch all items with improved performance
 export const fetchItems = async () => {
+  console.log('Fetching all items');
   const { data, error } = await supabase
     .from('items')
     .select(`
@@ -99,6 +101,7 @@ export const fetchUserRentals = async (userId) => {
 
 // Fetch items rented from the user
 export const fetchOwnerRentals = async (userId) => {
+  console.log('Fetching owner rentals for user:', userId);
   const { data, error } = await supabase
     .from('rentals')
     .select(`
@@ -117,7 +120,10 @@ export const fetchOwnerRentals = async (userId) => {
     throw error;
   }
 
-  return data.map((rental) => ({
+  console.log('Owner rentals raw data:', data);
+  
+  // Transform the data for easier consumption
+  const transformedData = data.map((rental) => ({
     ...rental,
     item: {
       ...rental.items,
@@ -125,6 +131,9 @@ export const fetchOwnerRentals = async (userId) => {
       location: rental.items.location || 'Not specified'
     }
   }));
+  
+  console.log('Transformed owner rentals:', transformedData);
+  return transformedData;
 };
 
 // Optimize image upload process
@@ -269,7 +278,7 @@ export const createItem = async (
 
       return {
         ...completeItem,
-        images: completeItem.item_images || [],
+        images: completeItem.item_images?.map(img => img.image_url) || [],
         owner: completeItem.profiles || {}
       };
     } catch (error) {
@@ -324,12 +333,26 @@ export const createRental = async (
   }
 };
 
-// Update rental status with better error handling
-export const updateRentalStatus = async (
-  rentalId,
-  status
-) => {
+// Update rental status with improved error handling and logging
+export const updateRentalStatus = async (rentalId, status) => {
+  console.log(`Attempting to update rental ${rentalId} to status: ${status}`);
+  
   try {
+    // First check if the rental exists and its current status
+    const { data: rental, error: fetchError } = await supabase
+      .from('rentals')
+      .select('id, status, item_id')
+      .eq('id', rentalId)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching rental to update:', fetchError);
+      return false;
+    }
+    
+    console.log(`Current rental status: ${rental.status}, updating to: ${status}`);
+    
+    // Proceed with update
     const { error } = await supabase
       .from('rentals')
       .update({ 
@@ -340,11 +363,15 @@ export const updateRentalStatus = async (
 
     if (error) {
       console.error('Error updating rental status:', error);
-      throw error;
+      console.error('Error details:', error.message, error.details, error.hint);
+      return false;
     }
+    
+    console.log(`Successfully updated rental ${rentalId} to status: ${status}`);
+    return true;
   } catch (error) {
-    console.error('Error in updateRentalStatus:', error);
-    throw error;
+    console.error('Exception in updateRentalStatus:', error);
+    return false;
   }
 };
 

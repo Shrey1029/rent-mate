@@ -57,6 +57,7 @@ const Dashboard = () => {
     setOwnerRentalsLoading(true);
     try {
       const data = await fetchOwnerRentals(user.id);
+      console.log('Fetched owner rentals:', data);
       setOwnerRentals(data);
     } catch (error) {
       console.error('Error loading owner rentals:', error);
@@ -91,6 +92,7 @@ const Dashboard = () => {
   const handleRentalStatusUpdate = async (rentalId, newStatus) => {
     try {
       setProcessingRentalId(rentalId);
+      console.log(`Updating rental ${rentalId} status to ${newStatus}`);
       
       const success = await updateRentalStatus(rentalId, newStatus);
       
@@ -133,6 +135,15 @@ const Dashboard = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Fixed error handler for image loading
+  const handleImageError = (e) => {
+    // Type-safe access to target properties
+    const target = e.target as HTMLImageElement;
+    if (target) {
+      target.src = '/placeholder.svg';
+    }
   };
 
   // User data from profile
@@ -225,11 +236,9 @@ const Dashboard = () => {
                           {rental.item?.images && rental.item.images.length > 0 ? (
                             <img 
                               src={rental.item.images[0]} 
-                              alt={rental.item.name} 
+                              alt={rental.item.name || 'Item'} 
                               className="w-16 h-16 rounded-lg object-cover"
-                              onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
-                              }}
+                              onError={handleImageError}
                             />
                           ) : (
                             <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -238,7 +247,7 @@ const Dashboard = () => {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-medium">{rental.item?.name}</h3>
+                          <h3 className="font-medium">{rental.item?.name || 'Unknown Item'}</h3>
                           <p className="text-sm text-muted-foreground">
                             Rental #{rental.id.substring(0, 8)}
                           </p>
@@ -271,9 +280,7 @@ const Dashboard = () => {
                             src={rental.renter?.avatar_url || '/placeholder.svg'} 
                             alt={rental.renter?.full_name || 'Renter'} 
                             className="w-4 h-4 rounded-full mr-1"
-                            onError={(e) => {
-                              e.target.src = '/placeholder.svg';
-                            }}
+                            onError={handleImageError}
                           />
                           {rental.renter?.full_name || 'Anonymous'}
                         </p>
