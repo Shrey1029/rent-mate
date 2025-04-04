@@ -1,4 +1,3 @@
-
 import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -422,8 +421,9 @@ export const createRental = async (
 export const updateRentalStatus = async (
   rentalId: string,
   status: string
-) => {
+): Promise<boolean> => {
   try {
+    console.log(`Updating rental ${rentalId} status to: ${status}`);
     const { error } = await supabase
       .from('rentals')
       .update({ 
@@ -436,9 +436,11 @@ export const updateRentalStatus = async (
       console.error('Error updating rental status:', error);
       throw error;
     }
+    
+    return true;
   } catch (error) {
     console.error('Error in updateRentalStatus:', error);
-    throw error;
+    return false;
   }
 };
 

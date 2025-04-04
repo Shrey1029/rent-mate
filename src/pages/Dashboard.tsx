@@ -12,8 +12,9 @@ import { toast } from "sonner";
 import ProfileImageUpload from "@/components/ProfileImageUpload";
 import UserItems from "@/components/UserItems";
 import UserRentals from "@/components/UserRentals";
-import { fetchOwnerRentals } from "@/services/itemService";
+import { fetchOwnerRentals, updateRentalStatus } from "@/services/itemService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [ownerRentals, setOwnerRentals] = useState([]);
   const [ownerRentalsLoading, setOwnerRentalsLoading] = useState(false);
+  const [processingRentalId, setProcessingRentalId] = useState(null);
   const [formData, setFormData] = useState({
     full_name: '',
     location: ''
@@ -44,22 +46,25 @@ const Dashboard = () => {
   // Load owner rentals only when tab changes to 'orders'
   useEffect(() => {
     if (activeTab === 'orders' && user) {
-      const loadOwnerRentals = async () => {
-        setOwnerRentalsLoading(true);
-        try {
-          const data = await fetchOwnerRentals(user.id);
-          setOwnerRentals(data);
-        } catch (error) {
-          console.error('Error loading owner rentals:', error);
-          toast.error('Failed to load rental requests');
-        } finally {
-          setOwnerRentalsLoading(false);
-        }
-      };
-
       loadOwnerRentals();
     }
   }, [activeTab, user]);
+
+  // Function to load owner rentals
+  const loadOwnerRentals = async () => {
+    if (!user) return;
+    
+    setOwnerRentalsLoading(true);
+    try {
+      const data = await fetchOwnerRentals(user.id);
+      setOwnerRentals(data);
+    } catch (error) {
+      console.error('Error loading owner rentals:', error);
+      toast.error('Failed to load rental requests');
+    } finally {
+      setOwnerRentalsLoading(false);
+    }
+  };
 
   // Set form data when profile loads
   useEffect(() => {
@@ -79,6 +84,35 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Failed to sign out");
+    }
+  };
+
+  // Handle rental status update
+  const handleRentalStatusUpdate = async (rentalId, newStatus) => {
+    try {
+      setProcessingRentalId(rentalId);
+      
+      const success = await updateRentalStatus(rentalId, newStatus);
+      
+      if (success) {
+        // Update the local state to reflect the change
+        setOwnerRentals(prevRentals => 
+          prevRentals.map(rental => 
+            rental.id === rentalId 
+              ? { ...rental, status: newStatus } 
+              : rental
+          )
+        );
+        
+        toast.success(`Rental request ${newStatus === 'approved' ? 'approved' : 'declined'} successfully`);
+      } else {
+        toast.error(`Failed to ${newStatus === 'approved' ? 'approve' : 'decline'} the rental request`);
+      }
+    } catch (error) {
+      console.error(`Error ${newStatus === 'approved' ? 'approving' : 'declining'} rental:`, error);
+      toast.error(`Error: ${error.message || 'Something went wrong'}`);
+    } finally {
+      setProcessingRentalId(null);
     }
   };
 
@@ -190,9 +224,12 @@ const Dashboard = () => {
                         <div className="flex-shrink-0 mr-4">
                           {rental.item?.images && rental.item.images.length > 0 ? (
                             <img 
-                              src={rental.item.images[0].image_url} 
+                              src={rental.item.images[0]} 
                               alt={rental.item.name} 
                               className="w-16 h-16 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
+                              }}
                             />
                           ) : (
                             <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -209,8 +246,9 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          rental.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          rental.status === 'approved' ? 'bg-green-100 text-green-800' : 
                           rental.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                          rental.status === 'declined' ? 'bg-red-100 text-red-800' : 
                           rental.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
                           'bg-yellow-100 text-yellow-800'
                         }`}>
@@ -233,6 +271,9 @@ const Dashboard = () => {
                             src={rental.renter?.avatar_url || '/placeholder.svg'} 
                             alt={rental.renter?.full_name || 'Renter'} 
                             className="w-4 h-4 rounded-full mr-1"
+                            onError={(e) => {
+                              e.target.src = '/placeholder.svg';
+                            }}
                           />
                           {rental.renter?.full_name || 'Anonymous'}
                         </p>
@@ -249,12 +290,23 @@ const Dashboard = () => {
                       </Link>
                       {rental.status === 'pending' && (
                         <>
-                          <button className="px-4 py-1 text-sm bg-green-500 text-white rounded-lg">
-                            Accept
-                          </button>
-                          <button className="px-4 py-1 text-sm bg-gray-300 text-gray-700 rounded-lg">
-                            Decline
-                          </button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleRentalStatusUpdate(rental.id, 'approved')}
+                            className="px-4 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600"
+                            disabled={processingRentalId === rental.id}
+                          >
+                            {processingRentalId === rental.id ? 'Processing...' : 'Accept'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRentalStatusUpdate(rental.id, 'declined')}
+                            className="px-4 py-1 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                            disabled={processingRentalId === rental.id}
+                          >
+                            {processingRentalId === rental.id ? 'Processing...' : 'Decline'}
+                          </Button>
                         </>
                       )}
                     </div>
