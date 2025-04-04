@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Star, Trash2, ArrowLeft } from "lucide-react";
+import { Heart, Star, Trash2, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { deleteItem } from "@/services/itemService";
@@ -55,6 +55,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -100,6 +101,13 @@ const ItemCard: React.FC<ItemCardProps> = ({
   // Check if current user is the owner of the item
   const isOwner = user && item.owner && user.id === item.owner.id;
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error('Image failed to load');
+    setImageError(true);
+    e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Error';
+    setIsLoaded(true);
+  };
+
   return (
     <>
       <div
@@ -117,20 +125,22 @@ const ItemCard: React.FC<ItemCardProps> = ({
           >
             <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
           </div>
-          <img
-            src={imageUrl}
-            alt={item.name}
-            className={cn(
-              "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
-              isLoaded ? "opacity-100" : "opacity-0"
-            )}
-            onLoad={() => setIsLoaded(true)}
-            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-              console.error('Image failed to load');
-              e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Error';
-              setIsLoaded(true);
-            }}
-          />
+          {imageError ? (
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <ImageOff className="w-10 h-10 text-muted-foreground" />
+            </div>
+          ) : (
+            <img
+              src={imageUrl}
+              alt={item.name}
+              className={cn(
+                "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
+                isLoaded ? "opacity-100" : "opacity-0"
+              )}
+              onLoad={() => setIsLoaded(true)}
+              onError={handleImageError}
+            />
+          )}
           <div className="absolute top-3 right-3 flex gap-2 z-10">
             <button
               onClick={(e) => {

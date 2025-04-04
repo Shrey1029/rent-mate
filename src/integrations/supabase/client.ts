@@ -82,6 +82,7 @@ export const ensureStorageBucket = async (bucketName: string, isPublic: boolean 
     
     if (!bucketExists) {
       console.log(`Creating storage bucket: ${bucketName}`);
+      // Fix TypeScript error by using an object with the correct options structure
       const { error } = await supabase.storage.createBucket(bucketName, {
         public: isPublic,
         fileSizeLimit: 5242880 // 5MB

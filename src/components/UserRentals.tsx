@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Package } from 'lucide-react';
+import { Package, ImageOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RentalItem {
   id: string;
   name: string;
   description: string;
-  images: { id: string; image_url: string; is_primary: boolean }[];
+  images: string[];
   [key: string]: any;
 }
 
@@ -29,6 +29,7 @@ const UserRentals: React.FC = () => {
   const { user } = useAuth();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -47,6 +48,13 @@ const UserRentals: React.FC = () => {
 
     loadUserRentals();
   }, [user]);
+
+  const handleImageError = (rentalId: string) => {
+    setImageErrors(prev => ({
+      ...prev,
+      [rentalId]: true
+    }));
+  };
 
   // Loading skeleton
   if (isLoading) {
@@ -91,17 +99,18 @@ const UserRentals: React.FC = () => {
           {rentals.map(rental => (
             <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="h-40 overflow-hidden">
-                {rental.item?.images && rental.item.images.length > 0 ? (
+                {imageErrors[rental.id] || !rental.item?.images || rental.item.images.length === 0 ? (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <ImageOff className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                ) : (
                   <img 
-                    src={rental.item.images[0].image_url} 
+                    src={rental.item.images[0]} 
                     alt={rental.item.name}
                     className="w-full h-full object-cover"
                     loading="lazy"
+                    onError={() => handleImageError(rental.id)}
                   />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <Package className="h-8 w-8 text-muted-foreground" />
-                  </div>
                 )}
               </div>
               <div className="p-4">

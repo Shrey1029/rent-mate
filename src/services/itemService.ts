@@ -69,7 +69,8 @@ export const fetchItems = async (): Promise<ItemWithImages[]> => {
     // Transform the data to match our ItemWithImages type
     return (data || []).map((item: any) => ({
       ...item,
-      images: item.item_images?.map((img: any) => img.image_url) || [],
+      // Extract just the image URLs as strings, not the full objects
+      images: item.item_images?.map((img: ItemImage) => img.image_url) || [],
       owner: {
         id: item.profiles?.id || '',
         name: item.profiles?.full_name || 'Unknown User',
