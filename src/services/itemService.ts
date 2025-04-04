@@ -67,20 +67,29 @@ export const fetchItems = async (): Promise<ItemWithImages[]> => {
     console.log(`Retrieved ${data?.length || 0} items from database`);
 
     // Transform the data to match our ItemWithImages type
-    return (data || []).map((item: any) => ({
-      ...item,
-      // Extract just the image URLs as strings, not the full objects
-      images: item.item_images?.map((img: ItemImage) => img.image_url) || [],
-      owner: {
-        id: item.profiles?.id || '',
-        name: item.profiles?.full_name || 'Unknown User',
-        avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
-        rating: 4.8 // Default rating
-      },
-      price: Number(item.price), // Ensure price is a number
-      priceUnit: item.daily_rate ? "day" : "rental",
-      location: item.location || 'Not specified'
-    }));
+    return (data || []).map((item: any) => {
+      // Properly extract image URLs from item_images
+      const imageUrls = item.item_images?.map((img: ItemImage) => {
+        return img.image_url;
+      }) || [];
+      
+      console.log(`Item ${item.id} has ${imageUrls.length} images`);
+      
+      return {
+        ...item,
+        // Just extract the image URLs as strings
+        images: imageUrls,
+        owner: {
+          id: item.profiles?.id || '',
+          name: item.profiles?.full_name || 'Unknown User',
+          avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
+          rating: 4.8 // Default rating
+        },
+        price: Number(item.price), // Ensure price is a number
+        priceUnit: item.daily_rate ? "day" : "rental",
+        location: item.location || 'Not specified'
+      };
+    });
   } catch (error) {
     console.error("Error in fetchItems:", error);
     throw error;
@@ -104,19 +113,24 @@ export const fetchUserItems = async (userId: string): Promise<ItemWithImages[]> 
     throw error;
   }
 
-  return (data || []).map((item: any) => ({
-    ...item,
-    images: item.item_images?.map((img: any) => img.image_url) || [],
-    owner: {
-      id: item.profiles?.id || '',
-      name: item.profiles?.full_name || 'Unknown User',
-      avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
-      rating: 4.8 // Default rating
-    },
-    price: Number(item.price), // Ensure price is a number
-    priceUnit: item.daily_rate ? "day" : "rental",
-    location: item.location || 'Not specified'
-  }));
+  return (data || []).map((item: any) => {
+    // Properly extract image URLs
+    const imageUrls = item.item_images?.map((img: ItemImage) => img.image_url) || [];
+    
+    return {
+      ...item,
+      images: imageUrls,
+      owner: {
+        id: item.profiles?.id || '',
+        name: item.profiles?.full_name || 'Unknown User',
+        avatar: item.profiles?.avatar_url || 'https://via.placeholder.com/150',
+        rating: 4.8 // Default rating
+      },
+      price: Number(item.price), // Ensure price is a number
+      priceUnit: item.daily_rate ? "day" : "rental",
+      location: item.location || 'Not specified'
+    };
+  });
 };
 
 // Fetch user's rentals with better performance
@@ -139,22 +153,27 @@ export const fetchUserRentals = async (userId: string): Promise<any[]> => {
     throw error;
   }
 
-  return (data || []).map((rental: any) => ({
-    ...rental,
-    item: {
-      ...rental.items,
-      images: rental.items?.item_images?.map((img: any) => img.image_url) || [],
-      owner: {
-        id: rental.items?.profiles?.id || '',
-        name: rental.items?.profiles?.full_name || 'Unknown User',
-        avatar: rental.items?.profiles?.avatar_url || 'https://via.placeholder.com/150',
-        rating: 4.8 // Default rating
-      },
-      price: parseInt(rental.items?.price), // Ensure price is a number
-      priceUnit: rental.items?.daily_rate ? "day" : "rental",
-      location: rental.items?.location || 'Not specified'
-    }
-  }));
+  return (data || []).map((rental: any) => {
+    // Extract image URLs properly
+    const imageUrls = rental.items?.item_images?.map((img: ItemImage) => img.image_url) || [];
+    
+    return {
+      ...rental,
+      item: {
+        ...rental.items,
+        images: imageUrls,
+        owner: {
+          id: rental.items?.profiles?.id || '',
+          name: rental.items?.profiles?.full_name || 'Unknown User',
+          avatar: rental.items?.profiles?.avatar_url || 'https://via.placeholder.com/150',
+          rating: 4.8 // Default rating
+        },
+        price: parseInt(rental.items?.price), // Ensure price is a number
+        priceUnit: rental.items?.daily_rate ? "day" : "rental",
+        location: rental.items?.location || 'Not specified'
+      }
+    };
+  });
 };
 
 // Fetch items rented from the user

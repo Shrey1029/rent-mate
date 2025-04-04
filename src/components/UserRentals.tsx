@@ -96,54 +96,62 @@ const UserRentals: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rentals.map(rental => (
-            <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-40 overflow-hidden">
-                {imageErrors[rental.id] || !rental.item?.images || rental.item.images.length === 0 ? (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <ImageOff className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                ) : (
-                  <img 
-                    src={rental.item.images[0]} 
-                    alt={rental.item.name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={() => handleImageError(rental.id)}
-                  />
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="font-medium text-lg">{rental.item?.name}</h3>
-                <div className="flex justify-between items-center mt-1">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(rental.start_date).toLocaleDateString()} - {new Date(rental.end_date).toLocaleDateString()}
-                    </p>
-                    <div className="flex items-center mt-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                        rental.status === 'active' ? 'bg-green-100 text-green-800' : 
-                        rental.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-                        rental.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
-                      </span>
+          {rentals.map(rental => {
+            // Check if rental.item exists and if images are valid
+            const hasValidImages = rental.item && 
+                                  Array.isArray(rental.item.images) && 
+                                  rental.item.images.length > 0 && 
+                                  typeof rental.item.images[0] === 'string';
+            
+            return (
+              <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <div className="h-40 overflow-hidden">
+                  {imageErrors[rental.id] || !hasValidImages ? (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <ImageOff className="h-8 w-8 text-muted-foreground" />
                     </div>
-                  </div>
-                  <p className="font-semibold">₹{rental.total_price}</p>
+                  ) : (
+                    <img 
+                      src={rental.item.images[0]} 
+                      alt={rental.item.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={() => handleImageError(rental.id)}
+                    />
+                  )}
                 </div>
-                <div className="mt-3 flex justify-end">
-                  <Link 
-                    to={`/item/${rental.item?.id}`}
-                    className="text-sm text-rentmate-orange hover:underline"
-                  >
-                    View Details
-                  </Link>
+                <div className="p-4">
+                  <h3 className="font-medium text-lg">{rental.item?.name}</h3>
+                  <div className="flex justify-between items-center mt-1">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(rental.start_date).toLocaleDateString()} - {new Date(rental.end_date).toLocaleDateString()}
+                      </p>
+                      <div className="flex items-center mt-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          rental.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          rental.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                          rental.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="font-semibold">₹{rental.total_price}</p>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Link 
+                      to={`/item/${rental.item?.id}`}
+                      className="text-sm text-rentmate-orange hover:underline"
+                    >
+                      View Details
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

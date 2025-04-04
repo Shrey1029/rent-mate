@@ -59,10 +59,11 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Check if the item has valid images
+  const hasValidImages = Array.isArray(item.images) && item.images.length > 0 && typeof item.images[0] === 'string';
+  
   // Default placeholder image if no images are available
-  const imageUrl = item.images && item.images.length > 0 
-    ? item.images[0] 
-    : 'https://via.placeholder.com/400x300?text=No+Image';
+  const imageUrl = hasValidImages ? item.images[0] : null;
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to item detail
@@ -101,10 +102,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
   // Check if current user is the owner of the item
   const isOwner = user && item.owner && user.id === item.owner.id;
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.error('Image failed to load');
+  const handleImageError = () => {
+    console.error('Image failed to load:', imageUrl);
     setImageError(true);
-    e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Error';
     setIsLoaded(true);
   };
 
@@ -125,7 +125,8 @@ const ItemCard: React.FC<ItemCardProps> = ({
           >
             <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
           </div>
-          {imageError ? (
+          
+          {imageError || !imageUrl ? (
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <ImageOff className="w-10 h-10 text-muted-foreground" />
             </div>
@@ -141,6 +142,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
               onError={handleImageError}
             />
           )}
+          
           <div className="absolute top-3 right-3 flex gap-2 z-10">
             <button
               onClick={(e) => {
@@ -200,16 +202,20 @@ const ItemCard: React.FC<ItemCardProps> = ({
           </div>
           <div className="mt-3 pt-3 border-t border-muted flex items-center justify-between">
             <div className="flex items-center">
-              <img
-                src={item.owner.avatar}
-                alt={item.owner.name}
-                className="w-6 h-6 rounded-full mr-2"
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = 'https://via.placeholder.com/150';
-                }}
-              />
+              {item.owner?.avatar ? (
+                <img
+                  src={item.owner.avatar}
+                  alt={item.owner.name || "User"}
+                  className="w-6 h-6 rounded-full mr-2"
+                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                    e.currentTarget.src = 'https://via.placeholder.com/150';
+                  }}
+                />
+              ) : (
+                <div className="w-6 h-6 bg-muted rounded-full mr-2" />
+              )}
               <span className="text-xs text-muted-foreground">
-                {item.owner.name}
+                {item.owner?.name || "Unknown User"}
               </span>
             </div>
             <span className="text-xs text-muted-foreground">{item.location}</span>
