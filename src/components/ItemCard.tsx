@@ -16,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
 export interface ItemOwner {
   id: string;
@@ -60,7 +59,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const navigate = useNavigate();
   
   // Check if the item has valid images
-  const hasValidImages = Array.isArray(item.images) && item.images.length > 0 && typeof item.images[0] === 'string';
+  const hasValidImages = Array.isArray(item.images) && item.images.length > 0;
   
   // Default placeholder image if no images are available
   const imageUrl = hasValidImages ? item.images[0] : null;
@@ -120,10 +119,15 @@ const ItemCard: React.FC<ItemCardProps> = ({
           <div
             className={cn(
               "absolute inset-0 bg-muted/20 backdrop-blur-sm flex items-center justify-center transition-opacity",
-              isLoaded ? "opacity-0" : "opacity-100"
+              isLoaded && !imageError ? "opacity-0" : "opacity-100"
             )}
           >
-            <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
+            {!isLoaded && (
+              <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
+            )}
+            {imageError && (
+              <ImageOff className="w-10 h-10 text-muted-foreground" />
+            )}
           </div>
           
           {imageError || !imageUrl ? (
@@ -136,7 +140,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
               alt={item.name}
               className={cn(
                 "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
-                isLoaded ? "opacity-100" : "opacity-0"
+                isLoaded && !imageError ? "opacity-100" : "opacity-0"
               )}
               onLoad={() => setIsLoaded(true)}
               onError={handleImageError}
@@ -207,8 +211,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
                   src={item.owner.avatar}
                   alt={item.owner.name || "User"}
                   className="w-6 h-6 rounded-full mr-2"
-                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/150';
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://via.placeholder.com/150';
                   }}
                 />
               ) : (

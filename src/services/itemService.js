@@ -20,8 +20,13 @@ export const fetchItems = async () => {
   // Transform the data to match our ItemWithImages type
   return data.map((item) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map(img => img.image_url) || [],
+    owner: {
+      id: item.owner_id,
+      name: item.profiles?.full_name || "Unknown",
+      avatar: item.profiles?.avatar_url || "https://via.placeholder.com/150",
+      rating: 4.8 // Default rating
+    },
     location: item.location || 'Not specified'
   }));
 };
@@ -45,8 +50,13 @@ export const fetchUserItems = async (userId) => {
 
   return data.map((item) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map(img => img.image_url) || [],
+    owner: {
+      id: item.owner_id,
+      name: item.profiles?.full_name || "Unknown",
+      avatar: item.profiles?.avatar_url || "https://via.placeholder.com/150",
+      rating: 4.8 // Default rating
+    },
     location: item.location || 'Not specified'
   }));
 };
@@ -75,8 +85,13 @@ export const fetchUserRentals = async (userId) => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
-      owner: rental.items.profiles || {},
+      images: rental.items.item_images?.map(img => img.image_url) || [],
+      owner: {
+        id: rental.items.owner_id,
+        name: rental.items.profiles?.full_name || "Unknown",
+        avatar: rental.items.profiles?.avatar_url || "https://via.placeholder.com/150",
+        rating: 4.8 // Default rating
+      },
       location: rental.items.location || 'Not specified'
     }
   }));
@@ -106,7 +121,7 @@ export const fetchOwnerRentals = async (userId) => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
+      images: rental.items.item_images?.map(img => img.image_url) || [],
       location: rental.items.location || 'Not specified'
     }
   }));

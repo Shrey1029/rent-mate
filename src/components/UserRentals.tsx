@@ -37,6 +37,7 @@ const UserRentals: React.FC = () => {
     const loadUserRentals = async () => {
       try {
         const data = await fetchUserRentals(user.id);
+        console.log('Rental data:', data); // Debugging log
         setRentals(data);
       } catch (error) {
         console.error('Error loading user rentals:', error);
@@ -97,22 +98,22 @@ const UserRentals: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {rentals.map(rental => {
-            // Check if rental.item exists and if images are valid
-            const hasValidImages = rental.item && 
-                                  Array.isArray(rental.item.images) && 
-                                  rental.item.images.length > 0 && 
-                                  typeof rental.item.images[0] === 'string';
+            // Get first valid image URL or null
+            const imageUrl = rental.item && 
+                            Array.isArray(rental.item.images) && 
+                            rental.item.images.length > 0 ? 
+                            rental.item.images[0] : null;
             
             return (
               <div key={rental.id} className="glass rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <div className="h-40 overflow-hidden">
-                  {imageErrors[rental.id] || !hasValidImages ? (
+                  {imageErrors[rental.id] || !imageUrl ? (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
                       <ImageOff className="h-8 w-8 text-muted-foreground" />
                     </div>
                   ) : (
                     <img 
-                      src={rental.item.images[0]} 
+                      src={imageUrl} 
                       alt={rental.item.name}
                       className="w-full h-full object-cover"
                       loading="lazy"
