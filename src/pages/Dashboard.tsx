@@ -5,30 +5,61 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { 
   User, UserCircle, Package, MessageSquare, 
-  Settings, CreditCard, LogOut, ChevronRight, ChevronDown 
+  Settings, CreditCard, LogOut, ChevronRight, ChevronDown,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import ProfileImageUpload from "@/components/ProfileImageUpload";
 import UserItems from "@/components/UserItems";
 import UserRentals from "@/components/UserRentals";
+import ProfileForm from "@/components/ProfileForm";
 import { fetchOwnerRentals, updateRentalStatus } from "@/services/itemService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("my-rentals");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [ownerRentals, setOwnerRentals] = useState([]);
   const [ownerRentalsLoading, setOwnerRentalsLoading] = useState(false);
   const [processingRentalId, setProcessingRentalId] = useState(null);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    location: ''
-  });
+  
+  // Denial reason state
+  const [isDenialDialogOpen, setIsDenialDialogOpen] = useState(false);
+  const [selectedRentalId, setSelectedRentalId] = useState(null);
+  const [denialReason, setDenialReason] = useState("");
+  const [isDenialReasonValid, setIsDenialReasonValid] = useState(true);
+  const [isDenialSubmitting, setIsDenialSubmitting] = useState(false);
+  
+  // Confirmation dialog state
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    rentalId: string | null;
+    action: 'approve' | 'decline';
+  }>({ rentalId: null, action: 'approve' });
 
   // Redirect if not logged in
   useEffect(() => {
@@ -67,16 +98,6 @@ const Dashboard = () => {
     }
   };
 
-  // Set form data when profile loads
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        full_name: profile.full_name || '',
-        location: profile.location || ''
-      });
-    }
-  }, [profile]);
-
   // Handle sign out
   const handleSignOut = async () => {
     try {
@@ -88,11 +109,32 @@ const Dashboard = () => {
     }
   };
 
+  // Open confirmation dialog
+  const openConfirmDialog = (rentalId: string, action: 'approve' | 'decline') => {
+    setConfirmAction({ rentalId, action });
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Open denial reason dialog
+  const openDenialDialog = (rentalId: string) => {
+    setSelectedRentalId(rentalId);
+    setDenialReason("");
+    setIsDenialReasonValid(true);
+    setIsDenialDialogOpen(true);
+  };
+
   // Handle rental status update
-  const handleRentalStatusUpdate = async (rentalId, newStatus) => {
+  const handleRentalStatusUpdate = async (rentalId: string, newStatus: string) => {
     try {
       setProcessingRentalId(rentalId);
       console.log(`Updating rental ${rentalId} status to ${newStatus}`);
+      
+      // If declining, open denial reason dialog instead of immediate update
+      if (newStatus === 'declined') {
+        openDenialDialog(rentalId);
+        setProcessingRentalId(null);
+        return;
+      }
       
       const success = await updateRentalStatus(rentalId, newStatus);
       
@@ -118,23 +160,40 @@ const Dashboard = () => {
     }
   };
 
-  // Handle profile update
-  const handleProfileUpdate = async () => {
-    try {
-      await updateProfile({
-        full_name: formData.full_name,
-        location: formData.location
-      });
-      toast.success("Profile updated successfully");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+  // Handle decline with reason submission
+  const handleDeclineWithReason = async () => {
+    if (!denialReason.trim()) {
+      setIsDenialReasonValid(false);
+      return;
     }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    setIsDenialSubmitting(true);
+    
+    try {
+      // Add denial reason to the rental
+      const success = await updateRentalStatus(selectedRentalId, 'declined', denialReason);
+      
+      if (success) {
+        // Update local state
+        setOwnerRentals(prevRentals => 
+          prevRentals.map(rental => 
+            rental.id === selectedRentalId 
+              ? { ...rental, status: 'declined', denial_reason: denialReason } 
+              : rental
+          )
+        );
+        
+        toast.success('Rental request declined');
+        setIsDenialDialogOpen(false);
+      } else {
+        toast.error('Failed to decline the rental request');
+      }
+    } catch (error) {
+      console.error('Error declining rental:', error);
+      toast.error(`Error: ${error.message || 'Something went wrong'}`);
+    } finally {
+      setIsDenialSubmitting(false);
+    }
   };
 
   // Fixed error handler for image loading
@@ -290,6 +349,19 @@ const Dashboard = () => {
                         <p className="text-sm font-medium">₹{rental.total_price}</p>
                       </div>
                     </div>
+
+                    {/* Show denial reason if rental was declined */}
+                    {rental.status === 'declined' && rental.denial_reason && (
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
+                        <div className="flex items-start">
+                          <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-red-800">Reason for declining:</p>
+                            <p className="text-sm text-red-700">{rental.denial_reason}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="flex justify-end space-x-2">
                       <Link to={`/item/${rental.item?.id}`} className="text-sm text-rentmate-orange">
@@ -299,7 +371,7 @@ const Dashboard = () => {
                         <>
                           <Button 
                             size="sm"
-                            onClick={() => handleRentalStatusUpdate(rental.id, 'approved')}
+                            onClick={() => openConfirmDialog(rental.id, 'approve')}
                             className="px-4 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600"
                             disabled={processingRentalId === rental.id}
                           >
@@ -308,7 +380,7 @@ const Dashboard = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleRentalStatusUpdate(rental.id, 'declined')}
+                            onClick={() => openConfirmDialog(rental.id, 'decline')}
                             className="px-4 py-1 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
                             disabled={processingRentalId === rental.id}
                           >
@@ -340,68 +412,9 @@ const Dashboard = () => {
       case "settings":
         return (
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
+            <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
             <div className="glass rounded-2xl p-6 mb-6">
-              <div className="flex items-center justify-center mb-6">
-                <ProfileImageUpload />
-              </div>
-              
-              <h3 className="text-lg font-medium mb-4">Profile Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={userData.email}
-                    className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
-                    disabled
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Location</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rentmate-orange"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button 
-                  className="button-primary bg-rentmate-orange text-white py-2 px-4 rounded-lg"
-                  onClick={handleProfileUpdate}
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-            
-            <div className="glass rounded-2xl p-6">
-              <h3 className="text-lg font-medium mb-4">Account Security</h3>
-              <button className="w-full text-left px-4 py-3 rounded-xl border border-gray-300 hover:bg-muted transition-colors mb-3 flex items-center justify-between">
-                <span>Change Password</span>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-              <button className="w-full text-left px-4 py-3 rounded-xl border border-gray-300 hover:bg-muted transition-colors mb-3 flex items-center justify-between">
-                <span>Two-Factor Authentication</span>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-              <button className="w-full text-left px-4 py-3 rounded-xl border border-gray-300 hover:bg-muted transition-colors flex items-center justify-between">
-                <span>Connected Accounts</span>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
+              <ProfileForm />
             </div>
           </div>
         );
@@ -449,6 +462,7 @@ const Dashboard = () => {
                           src={userData.avatar}
                           alt={userData.name}
                           className="rounded-full w-full h-full object-cover"
+                          onError={handleImageError}
                         />
                         <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                       </div>
@@ -540,6 +554,83 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction.action === 'approve' ? 'Approve Rental Request' : 'Decline Rental Request'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction.action === 'approve' 
+                ? 'Are you sure you want to approve this rental request? This action cannot be undone.'
+                : 'Are you sure you want to decline this rental request? You will need to provide a reason.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setIsConfirmDialogOpen(false);
+                if (confirmAction.action === 'approve') {
+                  handleRentalStatusUpdate(confirmAction.rentalId, 'approved');
+                } else {
+                  openDenialDialog(confirmAction.rentalId);
+                }
+              }}
+              className={confirmAction.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {confirmAction.action === 'approve' ? 'Approve' : 'Continue to Decline'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Denial Reason Dialog */}
+      <Dialog open={isDenialDialogOpen} onOpenChange={setIsDenialDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Provide Reason for Declining</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this rental request. This will be shown to the renter.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2">
+            <Textarea
+              value={denialReason}
+              onChange={(e) => {
+                setDenialReason(e.target.value);
+                setIsDenialReasonValid(e.target.value.trim().length > 0);
+              }}
+              placeholder="Explain why you're declining this rental request..."
+              className={`min-h-[100px] ${!isDenialReasonValid ? 'border-red-500' : ''}`}
+            />
+            {!isDenialReasonValid && (
+              <p className="text-sm text-red-500 mt-1">A reason is required to decline the request</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDenialDialogOpen(false)}
+              disabled={isDenialSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeclineWithReason}
+              disabled={!denialReason.trim() || isDenialSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDenialSubmitting ? 'Submitting...' : 'Decline Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );

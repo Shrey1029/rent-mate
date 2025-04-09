@@ -12,6 +12,13 @@ type Profile = {
   location: string | null;
   created_at: string;
   updated_at: string;
+  phone_number: string | null;
+  gender: string | null;
+  college: string | null;
+  hostel_room: string | null;
+  department: string | null;
+  year_of_study: string | null;
+  bio: string | null;
 };
 
 type AuthContextType = {

@@ -334,7 +334,7 @@ export const createRental = async (
 };
 
 // Update rental status with improved error handling and logging
-export const updateRentalStatus = async (rentalId, status) => {
+export const updateRentalStatus = async (rentalId, status, denialReason = null) => {
   console.log(`Attempting to update rental ${rentalId} to status: ${status}`);
   
   try {
@@ -352,13 +352,21 @@ export const updateRentalStatus = async (rentalId, status) => {
     
     console.log(`Current rental status: ${rental.status}, updating to: ${status}`);
     
+    // Prepare update data
+    const updateData = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    };
+    
+    // If declining and providing a reason, add it
+    if (status === 'declined' && denialReason) {
+      updateData.denial_reason = denialReason;
+    }
+    
     // Proceed with update
     const { error } = await supabase
       .from('rentals')
-      .update({ 
-        status, 
-        updated_at: new Date().toISOString() 
-      })
+      .update(updateData)
       .eq('id', rentalId);
 
     if (error) {
