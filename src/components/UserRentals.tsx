@@ -4,14 +4,20 @@ import { Link } from 'react-router-dom';
 import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Package, ImageOff } from 'lucide-react';
+import { Package, ImageOff, FileText, Star } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 interface RentalItem {
   id: string;
   name: string;
   description: string;
   images: string[];
+  owner: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
   [key: string]: any;
 }
 
@@ -21,11 +27,17 @@ interface Rental {
   end_date: string;
   total_price: number;
   status: string;
+  denial_reason?: string | null;
   item: RentalItem;
   [key: string]: any;
 }
 
-const UserRentals: React.FC = () => {
+interface UserRentalsProps {
+  onViewInvoice?: (rentalId: string) => void;
+  onRateUser?: (userId: string, userName: string, rentalId: string) => void;
+}
+
+const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) => {
   const { user } = useAuth();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,9 +142,10 @@ const UserRentals: React.FC = () => {
                       </p>
                       <div className="flex items-center mt-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          rental.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          rental.status === 'approved' ? 'bg-green-100 text-green-800' : 
                           rental.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
                           rental.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          rental.status === 'declined' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
                           {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
@@ -141,13 +154,54 @@ const UserRentals: React.FC = () => {
                     </div>
                     <p className="font-semibold">₹{rental.total_price}</p>
                   </div>
-                  <div className="mt-3 flex justify-end">
+
+                  {/* Show denial reason if rental was declined */}
+                  {rental.status === 'declined' && rental.denial_reason && (
+                    <div className="mt-3 bg-red-50 p-2 rounded-md">
+                      <p className="text-xs font-medium text-red-800">Reason for declining:</p>
+                      <p className="text-xs text-red-700">{rental.denial_reason}</p>
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 flex justify-between items-center">
                     <Link 
                       to={`/item/${rental.item?.id}`}
                       className="text-sm text-rentmate-orange hover:underline"
                     >
                       View Details
                     </Link>
+
+                    <div className="flex gap-2">
+                      {/* Show rate owner button for completed rentals */}
+                      {rental.status === 'completed' && onRateUser && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRateUser(
+                            rental.item.owner.id, 
+                            rental.item.owner.name,
+                            rental.id
+                          )}
+                          className="text-xs flex items-center px-2 py-1"
+                        >
+                          <Star className="h-3 w-3 mr-1" />
+                          Rate
+                        </Button>
+                      )}
+
+                      {/* Show invoice button for approved/completed rentals */}
+                      {(rental.status === 'approved' || rental.status === 'completed') && onViewInvoice && (
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onViewInvoice(rental.id)}
+                          className="text-xs flex items-center px-2 py-1"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          Invoice
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
