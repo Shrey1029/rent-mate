@@ -74,7 +74,7 @@ export const ensureUserProfile = async (userId: string) => {
 };
 
 // Helper function to ensure a storage bucket exists
-export const ensureStorageBucket = async (bucketName: string, isPublic = false) => {
+export const ensureStorageBucket = async (bucketName: string, isPublic = false): Promise<boolean> => {
   try {
     // Check if bucket exists
     const { data: buckets } = await supabase.storage.listBuckets();
