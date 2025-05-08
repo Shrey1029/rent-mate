@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { addUserRating } from '@/services/itemService.ts';
+import { addUserRating } from '@/services/itemService';
 import { Star } from 'lucide-react';
 import { toast } from 'sonner';
 
