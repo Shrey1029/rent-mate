@@ -193,13 +193,13 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
 
                   {/* Enhanced timer for pending rentals */}
                   {isPending && timeData && (
-                    <div className="mt-4 bg-amber-50 rounded-lg p-3">
+                    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center text-amber-800">
                           <Timer className="w-4 h-4 mr-1" />
-                          <span className="font-medium">Owner response time:</span>
+                          <span className="font-medium text-sm">Owner response time:</span>
                         </div>
-                        <span className={`text-sm font-semibold ${
+                        <span className={`text-sm font-bold ${
                           timeData.isExpiringSoon ? 'text-red-600' : 'text-amber-700'
                         }`}>
                           {timeData.timeText}
@@ -208,7 +208,7 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
                       <div className="w-full">
                         <Progress 
                           value={timeData.progressPercent} 
-                          className="h-2"
+                          className="h-2 bg-amber-200"
                           indicatorClassName={`${
                             timeData.progressPercent > 60 
                               ? 'bg-green-500' 
@@ -218,10 +218,10 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
                           }`}
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-600 mt-1">
                         {timeData.progressPercent <= 0 
                           ? "Request will auto-expire soon" 
-                          : "Owner has 3 hours to respond"}
+                          : "Owner has 3 hours to respond to your request"}
                       </p>
                     </div>
                   )}
