@@ -1,4 +1,3 @@
-
 import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -441,5 +440,41 @@ export const deleteItem = async (itemId) => {
   } catch (error) {
     console.error('Error in deleteItem:', error);
     throw error;
+  }
+};
+
+// New function to add a user rating
+export const addUserRating = async (
+  ratedUserId,
+  rating,
+  comment,
+  rentalId
+) => {
+  try {
+    // Get current user
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const { error } = await supabase
+      .from('user_ratings')
+      .insert({
+        rater_id: userData.user.id,
+        rated_user_id: ratedUserId,
+        rating,
+        comment,
+        rental_id: rentalId
+      });
+    
+    if (error) {
+      console.error('Error adding user rating:', error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in addUserRating:', error);
+    return false;
   }
 };
