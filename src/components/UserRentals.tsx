@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUserRentals } from '@/services/itemService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Package, ImageOff, FileText, Star, Clock } from 'lucide-react';
+import { Package, ImageOff, FileText, Star, Timer } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -42,6 +43,7 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     if (!user) return;
@@ -62,6 +64,15 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
     loadUserRentals();
   }, [user]);
 
+  // Update the current time every minute to refresh timers
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(timer);
+  }, []);
+
   const handleImageError = (rentalId: string) => {
     setImageErrors(prev => ({
       ...prev,
@@ -73,10 +84,10 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
   const calculateTimeData = (createdAt: string) => {
     const created = new Date(createdAt);
     const expiresAt = new Date(created.getTime() + (3 * 60 * 60 * 1000)); // 3 hours later
-    const now = new Date();
+    const now = currentTime;
     const diff = expiresAt.getTime() - now.getTime();
     
-    if (diff <= 0) return { timeText: 'Expired', progressPercent: 0 };
+    if (diff <= 0) return { timeText: 'Expired', progressPercent: 0, isExpiringSoon: true };
     
     const hours = Math.floor(diff / (60 * 60 * 1000));
     const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
@@ -86,8 +97,9 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
     const progressPercent = Math.max(0, Math.min(100, (diff / totalWindowMs) * 100));
     
     const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    const isExpiringSoon = progressPercent < 30;
     
-    return { timeText, progressPercent };
+    return { timeText, progressPercent, isExpiringSoon };
   };
 
   // Loading skeleton
@@ -179,25 +191,38 @@ const UserRentals: React.FC<UserRentalsProps> = ({ onViewInvoice, onRateUser }) 
                     <p className="font-semibold">₹{rental.total_price}</p>
                   </div>
 
-                  {/* Add timer for pending rentals */}
+                  {/* Enhanced timer for pending rentals */}
                   {isPending && timeData && (
-                    <div className="mt-2">
-                      <div className="flex items-center text-xs text-amber-600">
-                        <Clock className="w-3 h-3 mr-1" />
-                        <span>Owner response: {timeData.timeText}</span>
+                    <div className="mt-4 bg-amber-50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center text-amber-800">
+                          <Timer className="w-4 h-4 mr-1" />
+                          <span className="font-medium">Owner response time:</span>
+                        </div>
+                        <span className={`text-sm font-semibold ${
+                          timeData.isExpiringSoon ? 'text-red-600' : 'text-amber-700'
+                        }`}>
+                          {timeData.timeText}
+                        </span>
                       </div>
-                      <div className="mt-1 w-full">
+                      <div className="w-full">
                         <Progress 
                           value={timeData.progressPercent} 
-                          className={`h-1.5 ${
+                          className="h-2"
+                          indicatorClassName={`${
                             timeData.progressPercent > 60 
-                              ? 'bg-green-100' 
+                              ? 'bg-green-500' 
                               : timeData.progressPercent > 30 
-                                ? 'bg-amber-100' 
-                                : 'bg-red-100'
+                                ? 'bg-amber-500' 
+                                : 'bg-red-500'
                           }`}
                         />
                       </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {timeData.progressPercent <= 0 
+                          ? "Request will auto-expire soon" 
+                          : "Owner has 3 hours to respond"}
+                      </p>
                     </div>
                   )}
 
