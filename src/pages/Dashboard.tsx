@@ -20,7 +20,7 @@ import {
   checkAndAutoRejectPendingRentals, 
   generateInvoiceData,
   getUserRating
-} from "@/services/itemService";
+} from "@/services/itemService.js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
