@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -24,6 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -279,22 +279,25 @@ const Dashboard = () => {
     }
   };
 
-  // Calculate time remaining before auto-rejection
-  const calculateTimeRemaining = (createdAt: string) => {
+  // Calculate time remaining and progress percentage for approval window
+  const calculateTimeData = (createdAt: string) => {
     const created = new Date(createdAt);
     const expiresAt = new Date(created.getTime() + (3 * 60 * 60 * 1000)); // 3 hours later
     const now = new Date();
     const diff = expiresAt.getTime() - now.getTime();
     
-    if (diff <= 0) return 'Expired';
+    if (diff <= 0) return { timeText: 'Expired', progressPercent: 0 };
     
     const hours = Math.floor(diff / (60 * 60 * 1000));
     const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
     
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
+    // Calculate percentage of time remaining (from 100% to 0%)
+    const totalWindowMs = 3 * 60 * 60 * 1000; // 3 hours in ms
+    const progressPercent = Math.max(0, Math.min(100, (diff / totalWindowMs) * 100));
+    
+    const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    
+    return { timeText, progressPercent };
   };
 
   // Fixed error handler for image loading
@@ -390,7 +393,7 @@ const Dashboard = () => {
               <div className="space-y-4">
                 {ownerRentals.map((rental) => {
                   const isPending = rental.status === 'pending';
-                  const timeRemaining = isPending ? calculateTimeRemaining(rental.created_at) : null;
+                  const timeData = isPending ? calculateTimeData(rental.created_at) : null;
                   
                   return (
                     <div key={rental.id} className="glass rounded-2xl p-4 md:p-6">
@@ -416,9 +419,23 @@ const Dashboard = () => {
                               Rental #{rental.id.substring(0, 8)}
                             </p>
                             {isPending && (
-                              <div className="flex items-center text-xs text-amber-600 mt-1">
-                                <Clock className="w-3 h-3 mr-1" />
-                                <span>Time remaining: {timeRemaining}</span>
+                              <div>
+                                <div className="flex items-center text-xs text-amber-600 mt-1">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  <span>Time remaining: {timeData.timeText}</span>
+                                </div>
+                                <div className="mt-1 w-full max-w-[200px]">
+                                  <Progress 
+                                    value={timeData.progressPercent} 
+                                    className={`h-1.5 ${
+                                      timeData.progressPercent > 60 
+                                        ? 'bg-green-100' 
+                                        : timeData.progressPercent > 30 
+                                          ? 'bg-amber-100' 
+                                          : 'bg-red-100'
+                                    }`}
+                                  />
+                                </div>
                               </div>
                             )}
                           </div>
