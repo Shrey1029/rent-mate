@@ -119,15 +119,21 @@ const ItemDetail = () => {
   };
 
   const handleNextImage = () => {
+    if (!item?.images?.length) return;
     setCurrentImageIndex((prevIndex) =>
       prevIndex === item.images.length - 1 ? 0 : prevIndex + 1
     );
   };
 
   const handlePrevImage = () => {
+    if (!item?.images?.length) return;
     setCurrentImageIndex((prevIndex) =>
       prevIndex === 0 ? item.images.length - 1 : prevIndex - 1
     );
+  };
+
+  const handleBackToBrowse = () => {
+    navigate("/browse");
   };
 
   // Loading state
@@ -157,23 +163,28 @@ const ItemDetail = () => {
   return (
     <MainLayout>
       <div className="container mx-auto py-8">
-        <Link
-          to="/browse"
+        <Button
+          onClick={handleBackToBrowse}
+          variant="ghost"
           className="inline-flex items-center text-rentmate-orange mb-8 hover:underline"
         >
           <ChevronLeft className="w-4 h-4 mr-1" /> Back to Browse
-        </Link>
+        </Button>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Item Images */}
           <div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted shadow-subtle">
-              {item.images.length > 0 ? (
+              {item.images && item.images.length > 0 ? (
                 <>
                   <img
                     src={item.images[currentImageIndex]}
                     alt={item.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('Image failed to load:', item.images[currentImageIndex]);
+                      e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
+                    }}
                   />
                   
                   {item.images.length > 1 && (
@@ -200,7 +211,7 @@ const ItemDetail = () => {
               )}
             </div>
 
-            {item.images.length > 1 && (
+            {item.images && item.images.length > 1 && (
               <div className="flex mt-4 space-x-2 overflow-x-auto pb-2">
                 {item.images.map((imageUrl, index) => (
                   <button
@@ -216,6 +227,9 @@ const ItemDetail = () => {
                       src={imageUrl}
                       alt={`${item.name} thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/100?text=Error';
+                      }}
                     />
                   </button>
                 ))}
@@ -234,7 +248,7 @@ const ItemDetail = () => {
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 mr-1" />
-                  {item.location}
+                  {item.location || "Location not specified"}
                 </div>
               </div>
             </div>
@@ -245,7 +259,7 @@ const ItemDetail = () => {
 
             <div>
               <h3 className="text-md font-medium mb-2">Description</h3>
-              <p className="text-muted-foreground">{item.description}</p>
+              <p className="text-muted-foreground">{item.description || "No description provided"}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -270,6 +284,9 @@ const ItemDetail = () => {
                     src={item.owner.avatar}
                     alt={item.owner.name}
                     className="w-10 h-10 rounded-full mr-3 object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/150';
+                    }}
                   />
                   <div>
                     <p className="font-medium">{item.owner.name}</p>

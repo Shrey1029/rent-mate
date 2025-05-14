@@ -60,6 +60,7 @@ const UserItems = () => {
         location: item.location || "Not specified",
         images: item.item_images.map((img) => img.image_url),
         owner: {
+          id: user.id, // Make sure to include the owner ID
           name: user.user_metadata?.full_name || user.email?.split("@")[0],
           avatar: user.user_metadata?.avatar_url || "https://via.placeholder.com/150",
           rating: "4.8" // Default rating
@@ -79,6 +80,12 @@ const UserItems = () => {
     setShowCreateForm(false);
     fetchUserItems();
     toast.success("Item listed successfully!");
+  };
+
+  const handleDeleteItem = (deletedItemId) => {
+    // Update the items state to remove the deleted item
+    setItems(prevItems => prevItems.filter(item => item.id !== deletedItemId));
+    toast.success("Item removed from your listings");
   };
 
   if (loading) {
@@ -144,7 +151,12 @@ const UserItems = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => (
-            <ItemCard key={item.id} item={item} />
+            <ItemCard 
+              key={item.id} 
+              item={item} 
+              showDeleteButton={true} 
+              onDelete={handleDeleteItem}
+            />
           ))}
         </div>
       )}

@@ -35,8 +35,6 @@ const ItemCard = ({
     ? item.images[0] 
     : 'https://via.placeholder.com/400x300?text=No+Image';
 
-  console.log('Rendering ItemCard with image:', imageUrl);
-
   const handleDelete = async (e) => {
     e.preventDefault(); // Prevent navigation to item detail
     e.stopPropagation(); // Stop event propagation
@@ -71,11 +69,14 @@ const ItemCard = ({
     setShowDeleteDialog(false);
   };
 
+  // Check if current user is the owner of the item
+  const isOwner = user && item.owner && user.id === item.owner.id;
+
   return (
     <>
       <div
         className={cn(
-          "group relative rounded-2xl overflow-hidden animated-card bg-white",
+          "group relative rounded-2xl overflow-hidden animated-card bg-white transition-all duration-300 hover:shadow-md",
           featured ? "shadow-lg" : "shadow-subtle"
         )}
       >
@@ -97,7 +98,7 @@ const ItemCard = ({
             )}
             onLoad={() => setIsLoaded(true)}
             onError={(e) => {
-              console.error('Image failed to load');
+              console.error('Image failed to load:', imageUrl);
               e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
               setIsLoaded(true);
             }}
@@ -109,6 +110,7 @@ const ItemCard = ({
                 setIsLiked(!isLiked);
               }}
               className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+              aria-label={isLiked ? "Unlike item" : "Like item"}
             >
               <Heart
                 className={cn(
@@ -118,11 +120,12 @@ const ItemCard = ({
               />
             </button>
             
-            {showDeleteButton && item.owner && user && user.id === item.owner.id && (
+            {showDeleteButton && isOwner && (
               <button
                 onClick={handleDelete}
                 className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white hover:text-red-500 transition-colors"
                 aria-label="Delete item"
+                data-testid="delete-item-button"
               >
                 <Trash2 className="h-5 w-5" />
               </button>
@@ -140,7 +143,7 @@ const ItemCard = ({
           )}
         </div>
 
-        <Link to={`/item/${item.id}`} className="block p-4">
+        <Link to={`/item/${item.id}`} className="block p-4 hover:bg-gray-50 transition-colors">
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="card-title text-base font-semibold line-clamp-1">{item.name}</h3>
           </div>

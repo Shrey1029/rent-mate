@@ -5,8 +5,11 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import ItemCard from "@/components/ItemCard";
-import { items, categories } from "@/lib/data";
+import { categories } from "@/lib/data";
 import { Sliders, Grid, List, ChevronDown } from "lucide-react";
+import { fetchItems } from "@/services/itemService";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Browse = () => {
   const location = useLocation();
@@ -17,14 +20,37 @@ const Browse = () => {
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedCondition, setSelectedCondition] = useState("");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
-  const [filteredItems, setFilteredItems] = useState(items);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+  const [allItems, setAllItems] = useState<any[]>([]);
+  const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch all items from Supabase
+  useEffect(() => {
+    const loadItems = async () => {
+      setLoading(true);
+      try {
+        const items = await fetchItems();
+        console.log("Fetched items:", items);
+        setAllItems(items);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching items:", error);
+        toast.error("Failed to load items");
+        setLoading(false);
+      }
+    };
+
+    loadItems();
+  }, []);
 
   // Filter items based on search parameters
   useEffect(() => {
-    let filtered = [...items];
+    if (allItems.length === 0) return;
+
+    let filtered = [...allItems];
 
     // Category filter
     if (selectedCategory) {
@@ -47,7 +73,7 @@ const Browse = () => {
       filtered = filtered.filter(
         item =>
           item.name.toLowerCase().includes(searchLower) ||
-          item.description.toLowerCase().includes(searchLower)
+          (item.description && item.description.toLowerCase().includes(searchLower))
       );
     }
 
@@ -55,12 +81,13 @@ const Browse = () => {
     if (initialLocation) {
       const locationLower = initialLocation.toLowerCase();
       filtered = filtered.filter(item =>
-        item.location.toLowerCase().includes(locationLower)
+        item.location && item.location.toLowerCase().includes(locationLower)
       );
     }
 
+    console.log("Filtered items:", filtered);
     setFilteredItems(filtered);
-  }, [selectedCategory, selectedCondition, priceRange, initialSearch, initialLocation]);
+  }, [selectedCategory, selectedCondition, priceRange, initialSearch, initialLocation, allItems]);
 
   // Scroll to top on page load
   useEffect(() => {
@@ -163,16 +190,16 @@ const Browse = () => {
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="font-medium mb-2">Price Range</h3>
+                  <h3 className="font-medium mb-2">Price Range (₹)</h3>
                   <div className="px-2">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm">${priceRange[0]}</span>
-                      <span className="text-sm">${priceRange[1]}</span>
+                      <span className="text-sm">₹{priceRange[0]}</span>
+                      <span className="text-sm">₹{priceRange[1]}</span>
                     </div>
                     <input
                       type="range"
                       min="0"
-                      max="100"
+                      max="5000"
                       value={priceRange[1]}
                       onChange={e => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                       className="w-full"
@@ -184,7 +211,7 @@ const Browse = () => {
                   onClick={() => {
                     setSelectedCategory("");
                     setSelectedCondition("");
-                    setPriceRange([0, 100]);
+                    setPriceRange([0, 5000]);
                   }}
                   className="w-full py-2 text-sm text-muted-foreground hover:text-foreground"
                 >
@@ -288,16 +315,16 @@ const Browse = () => {
                   </div>
 
                   <div className="mb-4">
-                    <h3 className="font-medium mb-2">Price Range</h3>
+                    <h3 className="font-medium mb-2">Price Range (₹)</h3>
                     <div className="px-2">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm">${priceRange[0]}</span>
-                        <span className="text-sm">${priceRange[1]}</span>
+                        <span className="text-sm">₹{priceRange[0]}</span>
+                        <span className="text-sm">₹{priceRange[1]}</span>
                       </div>
                       <input
                         type="range"
                         min="0"
-                        max="100"
+                        max="5000"
                         value={priceRange[1]}
                         onChange={e => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                         className="w-full"
@@ -309,7 +336,7 @@ const Browse = () => {
                     onClick={() => {
                       setSelectedCategory("");
                       setSelectedCondition("");
-                      setPriceRange([0, 100]);
+                      setPriceRange([0, 5000]);
                     }}
                     className="w-full py-2 text-sm text-muted-foreground hover:text-foreground"
                   >
@@ -323,7 +350,7 @@ const Browse = () => {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Showing {filteredItems.length} results
+                  {loading ? "Loading items..." : `Showing ${filteredItems.length} results`}
                 </p>
                 <div className="flex items-center space-x-2">
                   <button
@@ -345,7 +372,29 @@ const Browse = () => {
                 </div>
               </div>
 
-              {filteredItems.length === 0 ? (
+              {loading ? (
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+                      : "space-y-4"
+                  }
+                >
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="glass rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="h-48 w-full" />
+                      <div className="p-4">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2 mb-4" />
+                        <div className="flex justify-between">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredItems.length === 0 ? (
                 <div className="glass p-12 rounded-2xl text-center">
                   <h3 className="text-lg font-medium mb-2">No items found</h3>
                   <p className="text-muted-foreground mb-4">
@@ -355,7 +404,7 @@ const Browse = () => {
                     onClick={() => {
                       setSelectedCategory("");
                       setSelectedCondition("");
-                      setPriceRange([0, 100]);
+                      setPriceRange([0, 5000]);
                     }}
                     className="button-primary bg-rentmate-orange text-white"
                   >

@@ -1,8 +1,9 @@
-import { supabase, ensureUserProfile, refreshSchemaCache } from '@/integrations/supabase/client';
+import { supabase, ensureUserProfile, refreshSchemaCache, ensureStorageBucket } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Fetch all items with improved performance
 export const fetchItems = async () => {
+  console.log('Fetching all items');
   const { data, error } = await supabase
     .from('items')
     .select(`
@@ -20,8 +21,13 @@ export const fetchItems = async () => {
   // Transform the data to match our ItemWithImages type
   return data.map((item) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map(img => img.image_url) || [],
+    owner: {
+      id: item.owner_id,
+      name: item.profiles?.full_name || "Unknown",
+      avatar: item.profiles?.avatar_url || "https://via.placeholder.com/150",
+      rating: 4.8 // Default rating
+    },
     location: item.location || 'Not specified'
   }));
 };
@@ -45,8 +51,13 @@ export const fetchUserItems = async (userId) => {
 
   return data.map((item) => ({
     ...item,
-    images: item.item_images || [],
-    owner: item.profiles || {},
+    images: item.item_images?.map(img => img.image_url) || [],
+    owner: {
+      id: item.owner_id,
+      name: item.profiles?.full_name || "Unknown",
+      avatar: item.profiles?.avatar_url || "https://via.placeholder.com/150",
+      rating: 4.8 // Default rating
+    },
     location: item.location || 'Not specified'
   }));
 };
@@ -75,8 +86,13 @@ export const fetchUserRentals = async (userId) => {
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
-      owner: rental.items.profiles || {},
+      images: rental.items.item_images?.map(img => img.image_url) || [],
+      owner: {
+        id: rental.items.owner_id,
+        name: rental.items.profiles?.full_name || "Unknown",
+        avatar: rental.items.profiles?.avatar_url || "https://via.placeholder.com/150",
+        rating: 4.8 // Default rating
+      },
       location: rental.items.location || 'Not specified'
     }
   }));
@@ -84,6 +100,7 @@ export const fetchUserRentals = async (userId) => {
 
 // Fetch items rented from the user
 export const fetchOwnerRentals = async (userId) => {
+  console.log('Fetching owner rentals for user:', userId);
   const { data, error } = await supabase
     .from('rentals')
     .select(`
@@ -102,14 +119,20 @@ export const fetchOwnerRentals = async (userId) => {
     throw error;
   }
 
-  return data.map((rental) => ({
+  console.log('Owner rentals raw data:', data);
+  
+  // Transform the data for easier consumption
+  const transformedData = data.map((rental) => ({
     ...rental,
     item: {
       ...rental.items,
-      images: rental.items.item_images || [],
+      images: rental.items.item_images?.map(img => img.image_url) || [],
       location: rental.items.location || 'Not specified'
     }
   }));
+  
+  console.log('Transformed owner rentals:', transformedData);
+  return transformedData;
 };
 
 // Optimize image upload process
@@ -254,7 +277,7 @@ export const createItem = async (
 
       return {
         ...completeItem,
-        images: completeItem.item_images || [],
+        images: completeItem.item_images?.map(img => img.image_url) || [],
         owner: completeItem.profiles || {}
       };
     } catch (error) {
@@ -309,27 +332,53 @@ export const createRental = async (
   }
 };
 
-// Update rental status with better error handling
-export const updateRentalStatus = async (
-  rentalId,
-  status
-) => {
+// Update rental status with improved error handling and logging
+export const updateRentalStatus = async (rentalId, status, denialReason = null) => {
+  console.log(`Attempting to update rental ${rentalId} to status: ${status}`);
+  
   try {
+    // First check if the rental exists and its current status
+    const { data: rental, error: fetchError } = await supabase
+      .from('rentals')
+      .select('id, status, item_id')
+      .eq('id', rentalId)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching rental to update:', fetchError);
+      return false;
+    }
+    
+    console.log(`Current rental status: ${rental.status}, updating to: ${status}`);
+    
+    // Prepare update data
+    const updateData = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    };
+    
+    // If declining and providing a reason, add it
+    if (status === 'declined' && denialReason) {
+      updateData.denial_reason = denialReason;
+    }
+    
+    // Proceed with update
     const { error } = await supabase
       .from('rentals')
-      .update({ 
-        status, 
-        updated_at: new Date().toISOString() 
-      })
+      .update(updateData)
       .eq('id', rentalId);
 
     if (error) {
       console.error('Error updating rental status:', error);
-      throw error;
+      console.error('Error details:', error.message, error.details, error.hint);
+      return false;
     }
+    
+    console.log(`Successfully updated rental ${rentalId} to status: ${status}`);
+    return true;
   } catch (error) {
-    console.error('Error in updateRentalStatus:', error);
-    throw error;
+    console.error('Exception in updateRentalStatus:', error);
+    return false;
   }
 };
 
@@ -390,6 +439,170 @@ export const deleteItem = async (itemId) => {
     return true;
   } catch (error) {
     console.error('Error in deleteItem:', error);
+    throw error;
+  }
+};
+
+// New function to automatically reject pending rentals older than 3 hours
+export const checkAndAutoRejectPendingRentals = async () => {
+  try {
+    const threeHoursAgo = new Date();
+    threeHoursAgo.setHours(threeHoursAgo.getHours() - 3);
+    
+    // Get all pending rentals created more than 3 hours ago
+    const { data, error } = await supabase
+      .from('rentals')
+      .select('id')
+      .eq('status', 'pending')
+      .lt('created_at', threeHoursAgo.toISOString());
+    
+    if (error) {
+      console.error('Error checking pending rentals:', error);
+      return false;
+    }
+    
+    if (!data || data.length === 0) {
+      return true; // No rentals to auto-reject
+    }
+    
+    // Auto-reject the pending rentals
+    const updatePromises = data.map(rental => 
+      updateRentalStatus(
+        rental.id, 
+        'declined', 
+        'Auto-rejected: Owner did not respond within 3 hours'
+      )
+    );
+    
+    await Promise.all(updatePromises);
+    console.log(`Auto-rejected ${data.length} pending rentals`);
+    
+    return true;
+  } catch (error) {
+    console.error('Error in checkAndAutoRejectPendingRentals:', error);
+    return false;
+  }
+};
+
+// New function to calculate user rating
+export const getUserRating = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_ratings')
+      .select('rating')
+      .eq('rated_user_id', userId);
+    
+    if (error) {
+      console.error('Error fetching user ratings:', error);
+      return null;
+    }
+    
+    if (!data || data.length === 0) {
+      return null; // No ratings yet
+    }
+    
+    // Calculate average rating
+    const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
+    const avgRating = sum / data.length;
+    
+    return parseFloat(avgRating.toFixed(1)); // Return with 1 decimal place
+  } catch (error) {
+    console.error('Error in getUserRating:', error);
+    return null;
+  }
+};
+
+// New function to add a user rating
+export const addUserRating = async (
+  ratedUserId,
+  rating,
+  comment,
+  rentalId
+) => {
+  try {
+    // Get current user
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const { error } = await supabase
+      .from('user_ratings')
+      .insert({
+        rater_id: userData.user.id,
+        rated_user_id: ratedUserId,
+        rating,
+        comment,
+        rental_id: rentalId
+      });
+    
+    if (error) {
+      console.error('Error adding user rating:', error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in addUserRating:', error);
+    return false;
+  }
+};
+
+// Function to generate a rental invoice
+export const generateInvoiceData = async (rentalId) => {
+  try {
+    const { data, error } = await supabase
+      .from('rentals')
+      .select(`
+        *,
+        items (
+          *,
+          profiles:owner_id (id, full_name, avatar_url, phone_number, location)
+        ),
+        renter:profiles!rentals_renter_id_fkey (id, full_name, avatar_url, phone_number, location)
+      `)
+      .eq('id', rentalId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching rental details for invoice:', error);
+      throw error;
+    }
+    
+    if (!data) {
+      throw new Error('Rental not found');
+    }
+    
+    return {
+      invoiceNumber: `RNT-${rentalId.substring(0, 8).toUpperCase()}`,
+      issueDate: new Date(data.updated_at).toLocaleDateString(),
+      rentalPeriod: {
+        start: new Date(data.start_date).toLocaleDateString(),
+        end: new Date(data.end_date).toLocaleDateString(),
+      },
+      item: {
+        id: data.items.id,
+        name: data.items.name,
+        price: data.items.price,
+        priceUnit: data.items.daily_rate ? 'per day' : 'fixed',
+      },
+      owner: {
+        id: data.items.owner_id,
+        name: data.items.profiles?.full_name || 'Unknown',
+        contact: data.items.profiles?.phone_number || 'Not provided',
+        location: data.items.profiles?.location || 'Not provided',
+      },
+      renter: {
+        id: data.renter_id,
+        name: data.renter?.full_name || 'Unknown',
+        contact: data.renter?.phone_number || 'Not provided',
+        location: data.renter?.location || 'Not provided',
+      },
+      totalAmount: data.total_price,
+      status: data.status,
+    };
+  } catch (error) {
+    console.error('Error in generateInvoiceData:', error);
     throw error;
   }
 };

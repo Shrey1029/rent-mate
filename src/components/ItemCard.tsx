@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Star, Trash2 } from "lucide-react";
+import { Heart, Star, Trash2, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { deleteItem } from "@/services/itemService";
@@ -54,15 +54,15 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Check if the item has valid images
+  const hasValidImages = Array.isArray(item.images) && item.images.length > 0;
+  
   // Default placeholder image if no images are available
-  const imageUrl = item.images && item.images.length > 0 
-    ? item.images[0] 
-    : 'https://via.placeholder.com/400x300?text=No+Image';
-
-  console.log('Rendering ItemCard with image:', imageUrl);
+  const imageUrl = hasValidImages ? item.images[0] : null;
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation to item detail
@@ -98,11 +98,20 @@ const ItemCard: React.FC<ItemCardProps> = ({
     setShowDeleteDialog(false);
   };
 
+  // Check if current user is the owner of the item
+  const isOwner = user && item.owner && user.id === item.owner.id;
+
+  const handleImageError = () => {
+    console.error('Image failed to load:', imageUrl);
+    setImageError(true);
+    setIsLoaded(true);
+  };
+
   return (
     <>
       <div
         className={cn(
-          "group relative rounded-2xl overflow-hidden animated-card bg-white",
+          "group relative rounded-2xl overflow-hidden animated-card bg-white transition-all duration-300 hover:shadow-md",
           featured ? "shadow-lg" : "shadow-subtle"
         )}
       >
@@ -110,25 +119,34 @@ const ItemCard: React.FC<ItemCardProps> = ({
           <div
             className={cn(
               "absolute inset-0 bg-muted/20 backdrop-blur-sm flex items-center justify-center transition-opacity",
-              isLoaded ? "opacity-0" : "opacity-100"
+              isLoaded && !imageError ? "opacity-0" : "opacity-100"
             )}
           >
-            <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
-          </div>
-          <img
-            src={imageUrl}
-            alt={item.name}
-            className={cn(
-              "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
-              isLoaded ? "opacity-100" : "opacity-0"
+            {!isLoaded && (
+              <div className="w-10 h-10 rounded-full border-2 border-rentmate-orange border-t-transparent animate-spin"></div>
             )}
-            onLoad={() => setIsLoaded(true)}
-            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-              console.error('Image failed to load');
-              e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Error';
-              setIsLoaded(true);
-            }}
-          />
+            {imageError && (
+              <ImageOff className="w-10 h-10 text-muted-foreground" />
+            )}
+          </div>
+          
+          {imageError || !imageUrl ? (
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <ImageOff className="w-10 h-10 text-muted-foreground" />
+            </div>
+          ) : (
+            <img
+              src={imageUrl}
+              alt={item.name}
+              className={cn(
+                "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
+                isLoaded && !imageError ? "opacity-100" : "opacity-0"
+              )}
+              onLoad={() => setIsLoaded(true)}
+              onError={handleImageError}
+            />
+          )}
+          
           <div className="absolute top-3 right-3 flex gap-2 z-10">
             <button
               onClick={(e) => {
@@ -136,6 +154,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
                 setIsLiked(!isLiked);
               }}
               className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+              aria-label={isLiked ? "Unlike item" : "Like item"}
             >
               <Heart
                 className={cn(
@@ -145,11 +164,12 @@ const ItemCard: React.FC<ItemCardProps> = ({
               />
             </button>
             
-            {showDeleteButton && user?.id === item.owner.id && (
+            {showDeleteButton && isOwner && (
               <button
                 onClick={handleDelete}
                 className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white hover:text-red-500 transition-colors"
                 aria-label="Delete item"
+                data-testid="delete-item-button"
               >
                 <Trash2 className="h-5 w-5" />
               </button>
@@ -167,7 +187,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
           )}
         </div>
 
-        <Link to={`/item/${item.id}`} className="block p-4">
+        <Link to={`/item/${item.id}`} className="block p-4 hover:bg-gray-50 transition-colors">
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="card-title text-base font-semibold line-clamp-1">{item.name}</h3>
           </div>
@@ -186,16 +206,21 @@ const ItemCard: React.FC<ItemCardProps> = ({
           </div>
           <div className="mt-3 pt-3 border-t border-muted flex items-center justify-between">
             <div className="flex items-center">
-              <img
-                src={item.owner.avatar}
-                alt={item.owner.name}
-                className="w-6 h-6 rounded-full mr-2"
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = 'https://via.placeholder.com/150';
-                }}
-              />
+              {item.owner?.avatar ? (
+                <img
+                  src={item.owner.avatar}
+                  alt={item.owner.name || "User"}
+                  className="w-6 h-6 rounded-full mr-2"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://via.placeholder.com/150';
+                  }}
+                />
+              ) : (
+                <div className="w-6 h-6 bg-muted rounded-full mr-2" />
+              )}
               <span className="text-xs text-muted-foreground">
-                {item.owner.name}
+                {item.owner?.name || "Unknown User"}
               </span>
             </div>
             <span className="text-xs text-muted-foreground">{item.location}</span>
